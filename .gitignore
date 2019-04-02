@@ -1,0 +1,11 @@
+# Ignore all this directories in any subfolder
+build/
+devel/
+logs/
+bin/
+
+# Ignore this hidden files in any subfolder
+.project
+.gradle
+.settings
+.classpath
