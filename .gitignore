@@ -9,3 +9,6 @@ bin/
 .gradle
 .settings
 .classpath
+
+# Ignore sitlN directories inside sitl_sim
+sitl_sim/sitl[0-9]*

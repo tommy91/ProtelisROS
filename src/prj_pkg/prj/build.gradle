@@ -16,8 +16,9 @@
 
 /* This plugin is necessary for creating installDist tasks (i.e. executables) */
 apply plugin: 'application'
-mainClassName = 'com.github.rosjava.prj_pkg.prj.MainExecutor'
-/* mainClassName = 'org.ros.RosRun' */
+/* mainClassName = 'com.github.rosjava.prj_pkg.prj.MainExecutor' */
+/* mainClassName = 'com.github.rosjava.prj_pkg.prj.PrjNode' */
+mainClassName = 'org.ros.RosRun'
 
 /* Added by me */
 apply plugin: 'maven'
@@ -58,8 +59,9 @@ dependencies {
   
   /* Message dependencies from the officially stored 
   artifacts in the rosjava_mvn_repo */
-  compile 'org.ros.rosjava_messages:diagnostic_msgs:1.12.+'
   compile 'org.ros.rosjava_messages:std_msgs:0.5.+'
+  compile 'org.ros.rosjava_messages:diagnostic_msgs:1.12.+'
+  compile 'org.ros.rosjava_messages:mavros_msgs:0.+'
   
   /* My custom messages */
   compile 'org.ros.rosjava_messages:rosjava_custom_msg:[0.1, 0.2)'

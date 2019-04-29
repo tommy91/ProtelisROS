@@ -1,0 +1,18 @@
+<launch>	
+	<!-- *** USE INSTRUCTIONS:
+
+	     You need to set system_id to the value of SYSID_THISMAV
+	     so its range must be 1-255, just like SYSID_THISMAV
+	     
+	     SYSID_THISMAV should be set in the parm file of the vehicle in sitl
+	          
+	     *** -->
+
+	<arg name="system_id" default="1" />	
+	<arg name="log_output" default="screen" />
+	<arg name="clear_params" default="true" />
+	
+	<node pkg="prj_pkg" type="prj" args="com.github.rosjava.prj_pkg.prj.PrjNode" name="prj_node_$(arg system_id)" output="$(arg log_output)" clear_params="$(arg clear_params)">	
+		<param name="system_id" value="$(arg system_id)" />			
+	</node>		
+</launch>

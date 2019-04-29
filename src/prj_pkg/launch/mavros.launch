@@ -1,0 +1,53 @@
+<launch>	
+	<!-- *** USE INSTRUCTIONS:
+
+	     You need to set system_id to the value of SYSID_THISMAV
+	     so its range must be 1-255, just like SYSID_THISMAV
+	     
+	     SYSID_THISMAV should be set in the parm file of the vehicle in sitl
+	           
+	     *** -->
+
+	<arg name="system_id" default="1" />	
+	
+	<!-- namespace like dev1, dev2, ... -->
+	<group ns="dev$(arg system_id)">
+		
+		<!-- default ports: 14551 and 14555 for system_id=1  -->
+		<!-- default ports: 14561 and 14565 for system_id=2  -->
+		<!-- ... and so on with a shift of 10 every time ...  -->
+		<arg name="shift" value="$(eval (arg('system_id') - 1) * 10)" />
+		<arg name="fcu_url" default="$(eval 'udp://127.0.0.1:' + str(14551 + arg('shift')) + '@' + str( 14555 + arg('shift')))" />
+		<arg name="gcs_url" default="" />
+		
+		<!-- tgt_system should be equal to system_id -->
+		<arg name="tgt_system" default="$(arg system_id)" />
+
+		<!-- <arg name="component_id" /> -->
+		<arg name="tgt_component" default="1" />
+		<arg name="log_output" default="screen" />
+		<arg name="fcu_protocol" default="v2.0" />
+		<arg name="respawn_mavros" default="false" />
+		<arg name="clear_params" default="true" />
+		<arg name="pluginlists_yaml" value="$(find mavros)/launch/apm_pluginlists.yaml" />
+		<arg name="config_yaml" value="$(find mavros)/launch/apm_config.yaml" />
+
+		<node pkg="mavros" type="mavros_node" name="mavros" required="$(eval not respawn_mavros)" clear_params="$(arg clear_params)" output="$(arg log_output)" respawn="$(arg respawn_mavros)">
+			
+			<env name="ROS_IP" value="127.0.0.1" />
+			
+			<param name="fcu_url" value="$(arg fcu_url)" />
+			<param name="gcs_url" value="$(arg gcs_url)" />
+			<param name="system_id" value="$(arg system_id)" />
+			<param name="target_system_id" value="$(arg tgt_system)" />
+			<!-- <param name="component_id" value="$(arg component_id)" /> -->
+			<param name="target_component_id" value="$(arg tgt_component)" />
+			<param name="fcu_protocol" value="$(arg fcu_protocol)" />
+
+			<!-- load blacklist, config -->
+			<rosparam command="load" file="$(arg pluginlists_yaml)" />
+			<rosparam command="load" file="$(arg config_yaml)" />
+		</node>
+
+	</group>
+</launch>

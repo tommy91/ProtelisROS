@@ -35,7 +35,7 @@ public class PrjNetworkManager implements NetworkManager {
 //		System.out.println("To send:");
 //		System.out.println(sendCache);
 		Type typeOfState = new TypeToken<LinkedHashMap<CodePath, Object>>() { }.getType();
-		String gsonState = this.gson.toJson(sendCache, typeOfState);
+		String gsonState = gson.toJson(sendCache, typeOfState);
 		return gsonState;
 	}
 	
@@ -45,9 +45,9 @@ public class PrjNetworkManager implements NetworkManager {
 //		System.out.println(gsonNeighbor);
 //		System.out.println(gsonState);
 		Type typeOfState = new TypeToken<LinkedHashMap<CodePath, Object>>() { }.getType();
-		Map<CodePath, Object> state = this.gson.fromJson(gsonState, typeOfState);
+		Map<CodePath, Object> state = gson.fromJson(gsonState, typeOfState);
 //		Type typeOfIntegerUID = new TypeToken<IntegerUID>() { }.getType();
-		IntegerUID neighbor = this.gson.fromJson(gsonNeighbor, IntegerUID.class);
+		IntegerUID neighbor = gson.fromJson(gsonNeighbor, IntegerUID.class);
 		receiveCache.put(neighbor, state);
 	}
 	
