@@ -11,4 +11,4 @@ bin/
 .classpath
 
 # Ignore sitlN directories inside sitl_sim
-sitl_sim/sitl[0-9]*
+src/sitl_sim/sitl[0-9]*

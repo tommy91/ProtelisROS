@@ -129,7 +129,7 @@ public class NeighborManager {
 		});
 	}
 	
-	private void printNeighbors() {
+	public void printNeighbors() {
 		String neighborsUIDs = "";
 		for (DeviceUID neighbor : neighbors) {
 			neighborsUIDs += neighbor.toString() + "  ";

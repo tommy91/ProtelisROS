@@ -16,12 +16,10 @@
 
 package com.github.rosjava.prj_pkg.prj;
 
-import java.util.Map;
 import java.util.List;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 
 import java8.util.function.Function;
 
@@ -43,8 +41,6 @@ import org.ros.node.Node;
 import org.ros.node.ConnectedNode;
 import org.ros.node.NodeMain;
 import org.ros.concurrent.CancellableLoop;
-import org.ros.exception.ParameterNotFoundException;
-import org.ros.internal.node.parameter.DefaultParameterTree;
 
 /**
  * A ROS node implementation which extends a Protelis AbstractExecutionContext
@@ -63,7 +59,7 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	/** ------------------- **/
 	
 	private ConnectedNode connectedNode;
-	private int system_id;
+	private Integer system_id;
 	
 	// Where we will print
 	private Log log;
@@ -74,12 +70,11 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	private int deviceIntID;
 	private String deviceStringID;
 	
-	// Node private parameters
-	private Map<String, Object> privateParams = new HashMap<>();
-	
 	// Mavros variables
 	private Process mavrosProcess;
 	private File mavrosLogFile;
+	
+	private MavrosParametersManager mavrosParametersManager;
 	private NeighborManager neighborManager;
 	private StatusManager statusManager;
 	private ServiceManager serviceManager;
@@ -223,8 +218,7 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	}
 	
 	/** 
-	 * Test actuator that dumps a string message to the output
-	 * TODO Called by Protelis program, to be removed
+	 * Called by Protelis to dump a string message to the output
 	 */
 	public void announce(String message) {
 		printLog(message);
@@ -257,9 +251,11 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		// Get ROS default logger
 		log = connectedNode.getLog();
 		
-		// Get parameters from parameter server
-		// TODO not working
-		getParams();
+		// Setup the parameters manager
+		mavrosParametersManager = new MavrosParametersManager(this, connectedNode);
+		
+		// Get the system id from parameters
+		getSystemID();
 		
 		setupProtelis();
 		setupUIDs();
@@ -268,32 +264,21 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		
 		neighborManager = new NeighborManager(this, connectedNode);
 		
-		// Launch mavros node and add a listener on diagnostics topic
-		// to get a signal when mavros is connected to the ardupilot device 
-		// launchMavrosNode();
-		
 		// Setup the managers
-		// Note: The method getExecutionEnvironment() is implemented in AbstractExecutionContext
-		statusManager = new StatusManager(this, connectedNode, getExecutionEnvironment());
-		serviceManager = new ServiceManager(this, connectedNode, getExecutionEnvironment());
-		ardupilotManager = new ArdupilotManager(this, getExecutionEnvironment(), serviceManager);
+		statusManager = new StatusManager(this);
+		serviceManager = new ServiceManager(this);
+		ardupilotManager = new ArdupilotManager(this);
 		
 		// Blocking here until the ardupilot device state is connected
 		// ardupilotManager.waitArdupilotSystemsOnline();
 				
 		// Setup mavros listeners and service callers
-		statusManager.addInterestedTopicsListeners();
-		ardupilotManager.waitArdupilotReady();
+		statusManager.subscribeInterestedTopics();
 		serviceManager.setupServices();
+		ardupilotManager.waitArdupilotReady();
 		
 		// Execute in loop the protelis program
 		runSynchronizer();
-		
-//		// Takeoff
-//		float random = (float) (2 + Math.random() * (8 - 2));
-//		ardupilotManager.takeoff(null, null, null, null, random);
-		
-
 	}
 	
 	/** 
@@ -328,13 +313,23 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	public void onError(Node node, Throwable throwable) {
 	}
 	
+	private void getSystemID() {
+		system_id = mavrosParametersManager.getIntegerParam("~system_id");
+		if (system_id != null) {
+			printLog("System ID: " + Integer.toString(system_id));
+		}
+		else {
+			system_id = 1;
+			printLog("Default System ID: " + Integer.toString(system_id));
+		}
+	}
+	
 	private void launchMavrosNode() {
 		// Setup log file:
 		mavrosLogFile = new File(baseLogDirectory + getMavrosNamespace() + "_mavros.log");
 		try {
 			mavrosLogFile.createNewFile();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
@@ -353,10 +348,25 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		try {
 			mavrosProcess = mavrosBuilder.start();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
+	}
+	
+	/**
+	 * NOTE: The method getExecutionEnvironment() is implemented in AbstractExecutionContext
+	 */
+	
+	public MavrosMessageManager getMavrosMessageManager() {
+		return mavrosMessageManager();
+	}
+	
+	public MavrosParametersManager getMavrosParametersManager() {
+		return mavrosParametersManager();
+	}
+	
+	public ServiceManager getServiceManager() {
+		return serviceManager;
 	}
 	
 	public ArdupilotManager getArdupilotManager() {
@@ -366,22 +376,6 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	public String getMavrosNamespace() {
 		// Namespace like 'dev0', 'dev1', ... 
 		return baseNamespace + deviceStringID;
-	}
-
-	private void getParams() {
-		DefaultParameterTree params = (DefaultParameterTree) connectedNode.getParameterTree();
-		try {
-			system_id = params.getInteger(connectedNode.resolveName("~system_id").toString());
-			printLog("System ID: " + Integer.toString(system_id));
-		} catch (ParameterNotFoundException e) {
-			printLog("ParameterNotFoundException: " + e);
-			List<GraphName> paramsNames = params.getNames();
-			for (int i = 0; i < paramsNames.size(); i++) {
-				printLog("parametro " + Integer.toString(i) + ": " + paramsNames.get(i));
-			}
-			system_id = 1;
-			printLog("Default System ID: " + Integer.toString(system_id));
-		}
 	}
 
 	public void printLog(String message) {
@@ -399,18 +393,6 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 			}
 		};
 		connectedNode.executeCancellableLoop(synchronizer);
-	}
-	
-	public void setPrivateParam(String key, Object value) {
-		privateParams.put(key, value);
-	}
-	
-	public Object getPrivateParam(String key) {
-		return privateParams.get(key);
-	}
-	
-	public boolean hasPrivateParam(String key) {
-		return privateParams.containsKey(key);
 	}
 
 }
