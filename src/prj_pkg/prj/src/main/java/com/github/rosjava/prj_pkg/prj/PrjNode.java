@@ -40,6 +40,13 @@ import org.ros.namespace.GraphName;
 import org.ros.node.Node;
 import org.ros.node.ConnectedNode;
 import org.ros.node.NodeMain;
+
+import com.github.rosjava.prj_pkg.prj.Mavros.MavrosMessagesManager;
+import com.github.rosjava.prj_pkg.prj.Mavros.MavrosParametersManager;
+import com.github.rosjava.prj_pkg.prj.Mavros.MavrosPublishersManager;
+import com.github.rosjava.prj_pkg.prj.Mavros.MavrosServicesManager;
+import com.github.rosjava.prj_pkg.prj.Mavros.MavrosSubscribersManager;
+
 import org.ros.concurrent.CancellableLoop;
 
 /**
@@ -74,10 +81,12 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	private Process mavrosProcess;
 	private File mavrosLogFile;
 	
+	private MavrosMessagesManager mavrosMessagesManager;
 	private MavrosParametersManager mavrosParametersManager;
 	private NeighborManager neighborManager;
-	private StatusManager statusManager;
-	private ServiceManager serviceManager;
+	private MavrosSubscribersManager mavrosSubscribersManager;
+	private MavrosPublishersManager mavrosPublishersManager;
+	private MavrosServicesManager mavrosServicesManager;
 	private ArdupilotManager ardupilotManager;
 	
 	// SITL variables
@@ -251,8 +260,7 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		// Get ROS default logger
 		log = connectedNode.getLog();
 		
-		// Setup the parameters manager
-		mavrosParametersManager = new MavrosParametersManager(this, connectedNode);
+		mavrosParametersManager = new MavrosParametersManager(this);
 		
 		// Get the system id from parameters
 		getSystemID();
@@ -262,20 +270,21 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		
 		launchMavrosNode();
 		
-		neighborManager = new NeighborManager(this, connectedNode);
+		neighborManager = new NeighborManager(this);
 		
-		// Setup the managers
-		statusManager = new StatusManager(this);
-		serviceManager = new ServiceManager(this);
+		mavrosSubscribersManager = new MavrosSubscribersManager(this);
+		mavrosPublishersManager = new MavrosPublishersManager(connectedNode);
+		mavrosMessagesManager = new MavrosMessagesManager(connectedNode);
+		mavrosServicesManager = new MavrosServicesManager(this);
 		ardupilotManager = new ArdupilotManager(this);
 		
 		// Blocking here until the ardupilot device state is connected
 		// ardupilotManager.waitArdupilotSystemsOnline();
 				
 		// Setup mavros listeners and service callers
-		statusManager.subscribeInterestedTopics();
-		serviceManager.setupServices();
+//		mavrosSubscribersManager.subscribeInterestedTopics();
 		ardupilotManager.waitArdupilotReady();
+		mavrosServicesManager.setupServices();
 		
 		// Execute in loop the protelis program
 		runSynchronizer();
@@ -357,16 +366,28 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	 * NOTE: The method getExecutionEnvironment() is implemented in AbstractExecutionContext
 	 */
 	
-	public MavrosMessageManager getMavrosMessageManager() {
-		return mavrosMessageManager();
+	public MavrosMessagesManager getMavrosMessagesManager() {
+		return mavrosMessagesManager;
 	}
 	
 	public MavrosParametersManager getMavrosParametersManager() {
-		return mavrosParametersManager();
+		return mavrosParametersManager;
 	}
 	
-	public ServiceManager getServiceManager() {
-		return serviceManager;
+	public MavrosServicesManager getMavrosServicesManager() {
+		return mavrosServicesManager;
+	}
+	
+	public MavrosSubscribersManager getMavrosSubscribersManager() {
+		return mavrosSubscribersManager;
+	}
+	
+	public MavrosPublishersManager getMavrosPublishersManager() {
+		return mavrosPublishersManager;
+	}
+	
+	public ConnectedNode getConnectedNode() {
+		return connectedNode;
 	}
 	
 	public ArdupilotManager getArdupilotManager() {

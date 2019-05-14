@@ -1,14 +1,15 @@
-package com.github.rosjava.prj_pkg.prj;
+package com.github.rosjava.prj_pkg.prj.Mavros;
 
 import java.util.Collections;
 import java.util.List;
 
-import org.ros.node.ConnectedNode;
+import com.github.rosjava.prj_pkg.prj.ParametersManager;
+import com.github.rosjava.prj_pkg.prj.PrjNode;
 
 public class MavrosParametersManager extends ParametersManager {
 	
-	public MavrosParametersManager(PrjNode prjNode, ConnectedNode connectedNode) {
-		super(prjNode, connectedNode);
+	public MavrosParametersManager(PrjNode prjNode) {
+		super(prjNode);
 	}
 	
 	/**

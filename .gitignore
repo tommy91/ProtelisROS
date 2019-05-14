@@ -12,3 +12,6 @@ bin/
 
 # Ignore sitlN directories inside sitl_sim
 src/sitl_sim/sitl[0-9]*
+
+# Ignore log files
+src/prj_pkg/launch/pid_dump.pid

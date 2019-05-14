@@ -62,6 +62,7 @@ dependencies {
   compile 'org.ros.rosjava_messages:std_msgs:0.5.+'
   compile 'org.ros.rosjava_messages:diagnostic_msgs:1.12.+'
   compile 'org.ros.rosjava_messages:mavros_msgs:0.+'
+  compile 'org.ros.rosjava_messages:std_srvs:1.+'
   
   /* My custom messages */
   compile 'org.ros.rosjava_messages:rosjava_custom_msg:[0.1, 0.2)'

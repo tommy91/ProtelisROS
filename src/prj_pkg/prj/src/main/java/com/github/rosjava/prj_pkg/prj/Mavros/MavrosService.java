@@ -1,24 +1,27 @@
-package com.github.rosjava.prj_pkg.prj;
-
-import java.util.ArrayList;
-import java.util.List;
+package com.github.rosjava.prj_pkg.prj.Mavros;
 
 import org.ros.exception.RemoteException;
 import org.ros.exception.RosRuntimeException;
 import org.ros.exception.ServiceNotFoundException;
-import org.ros.node.ConnectedNode;
+import org.ros.message.Time;
 import org.ros.node.service.ServiceClient;
 import org.ros.node.service.ServiceResponseListener;
 
-public class MavrosService<T_Req,T_Res> {
+import com.github.rosjava.prj_pkg.prj.PrjNode;
+
+public class MavrosService<T_Req,T_Res> extends MavrosReceiver<T_Res>{
 	
 	private ServiceClient<T_Req, T_Res> serviceClient;
 	private ServiceResponseListener<T_Res> serviceResponseListener;
-	private final List<T_Res> responses = new ArrayList<T_Res>();
+	private boolean canBeFound = true;	// default value set to true
+	private String completeServiceName;
+	private Time lastResponseTime;
 	
-	public MavrosService(ConnectedNode connectedNode, String mavrosPrefix, String serviceName, String serviceType) {
+	
+	public MavrosService(PrjNode prjNode, String completeServiceName, String serviceType) {
+		this.completeServiceName = completeServiceName;
 		try {
-			serviceClient = connectedNode.newServiceClient(mavrosPrefix + serviceName, serviceType);
+			serviceClient = prjNode.getConnectedNode().newServiceClient(completeServiceName, serviceType);
 			serviceResponseListener = new ServiceResponseListener<T_Res>() {
 				@Override
 				public void onFailure(RemoteException e) {
@@ -27,36 +30,60 @@ public class MavrosService<T_Req,T_Res> {
 
 				@Override
 				public void onSuccess(T_Res response) {
-					responses.add(response);
+					lastResponseTime = Time.fromMillis(System.currentTimeMillis());
+					addReceivedMessage(response);
 				}
 			};
 		} catch (ServiceNotFoundException e) {
-			throw new RosRuntimeException(e);
+			prjNode.printLog("Error on setup service '" + completeServiceName + "': service not found exception");
+			canBeFound = false;
+		}
+	}
+	
+	public boolean isNotFound() {
+		return !canBeFound;
+	}
+	
+	private void checkServiceFounded() {
+		if (!canBeFound) {
+			throw new RosRuntimeException("Cannot call the service '" + completeServiceName + "': service not found exception");
 		}
 	}
 	
 	public boolean isConnected() {
+		checkServiceFounded();
 		return serviceClient.isConnected();
 	}
 	
-	public T_Req newMessage() {
+	public T_Req newRequest() {
+		checkServiceFounded();
 		return serviceClient.newMessage();
 	}
 	
-	public void call(final T_Req request) {
-		serviceClient.call(request, serviceResponseListener);
-	}
-	
 	public boolean hasResponse() {
-		return responses.isEmpty();
+		return hasReceivedMessage();
 	}
 	
 	public T_Res getResponse() {
-		if (hasResponse()) {
-			return responses.remove(0);
-		}
-		else {
-			return null;
+		return removeReceivedMessage();
+	}
+	
+	public Time getResponseTime() {
+		return lastResponseTime;
+	}
+	
+	public void call(final T_Req request) {
+		checkServiceFounded();
+		serviceClient.call(request, serviceResponseListener);
+	}
+	
+	public void callSynch(final T_Req request, int sleepTimeMs) {
+		call(request);
+		while (!hasReceivedMessage()) {
+			try {
+				Thread.sleep(sleepTimeMs);
+			} catch (InterruptedException e) {
+			}
 		}
 	}
 	

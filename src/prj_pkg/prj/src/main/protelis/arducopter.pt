@@ -6,7 +6,7 @@ import java.lang.Math.random
 
 def maxh(field) { maxHood PlusSelf( nbr(field) ) }
 
-let status = self.getArdupilotManager().getStatus();
+let status = self.getArdupilotManager().getVehicleStatus();
 self.announce("Status: " + status);
 
 if (status == "READY") {
@@ -17,10 +17,9 @@ else { if (status == "WAITING_TAKEOFF") {
 	0
 }
 else { if (status == "FLYING") {
-	let altitudeKey = "altezza";
-	let altitude = env.get(altitudeKey,0);
-	self.announce("My altitude is " + env.get(altitudeKey,""));
-	self.announce("The maximum altitude is " + maxh(env.get(altitudeKey,0)));
+	let altitude = self.getArdupilotManager().getAltitude();
+	self.announce("My altitude is " + altitude);
+	self.announce("The maximum altitude is " + maxh(altitude));
 }
 else { if (status == "LANDED") {
 	0

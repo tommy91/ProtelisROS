@@ -9,117 +9,132 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.protelis.vm.ExecutionEnvironment;
+import org.ros.message.Time;
+
+import com.github.rosjava.prj_pkg.prj.Mavros.MavrosMessagesManager;
+import com.github.rosjava.prj_pkg.prj.Mavros.MavrosServicesManager;
+import com.github.rosjava.prj_pkg.prj.Mavros.MavrosSubscribersManager;
 
 public class ArdupilotManager {
 	
 	private final PrjNode prjNode;
 	private ExecutionEnvironment executionEnvironment;
-	ServiceManager serviceManager;
+	private MavrosServicesManager mavrosServicesManager;
+	private MavrosSubscribersManager mavrosSubscribersManager;
+	private MavrosMessagesManager mavrosMessagesManager;
+	
+	private double takeoffMinimumAltitude = 0.1;
+	private String vehicleStatus = "BOOTING_UP";
 
 	
-	public ArdupilotManager(PrjNode prjNode, ExecutionEnvironment executionEnvironment, ServiceManager serviceManager) {
+	public ArdupilotManager(PrjNode prjNode) {
 		this.prjNode = prjNode;
-		this.executionEnvironment = executionEnvironment;
-		this.serviceManager = serviceManager;
-		
+		executionEnvironment = prjNode.getExecutionEnvironment();
+		mavrosServicesManager = prjNode.getMavrosServicesManager();
+		mavrosSubscribersManager = prjNode.getMavrosSubscribersManager();
+		mavrosMessagesManager = prjNode.getMavrosMessagesManager();
 	}
 	
-	public void waitArdupilotSystemsOnline() {
-		printLog("Waiting for the ardupilot systems to be online.. ");
-		
-		// Map of < System name, Online status message >
-		Map<String,String> systemsStatus = new HashMap<String,String>();
-		systemsStatus.put("GCS bridge", "connected");
-		systemsStatus.put("System", "Normal");
-		systemsStatus.put("Heartbeat", "Normal");
-		systemsStatus.put("GPS", "3D fix");
-		systemsStatus.put("FCU connection", "connected");
-		// TODO systemsStatus.put("Battery", "???");
-		
-		List<String> systemSystemsNeeded = new ArrayList<String>();
-		systemSystemsNeeded.add("System 3D gyro");
-		systemSystemsNeeded.add("System 3D accelerometer");
-		systemSystemsNeeded.add("System 3D magnetometer");
-		systemSystemsNeeded.add("System absolute pressure");
-		systemSystemsNeeded.add("System GPS");
-		systemSystemsNeeded.add("System 3D angular rate control");
-		systemSystemsNeeded.add("System attitude stabilization");
-		systemSystemsNeeded.add("System yaw position");
-		systemSystemsNeeded.add("System motor outputs / control");
-		systemSystemsNeeded.add("System rc receiver");
-		systemSystemsNeeded.add("System AHRS subsystem health");
-		systemSystemsNeeded.add("System Terrain subsystem health");
-		systemSystemsNeeded.add("System Battery");
-		int numSystemSystemsNeeded = systemSystemsNeeded.size();
-		
-		// Setting all the systems as offline before starting to check
-		List<String> offlineSystems = new ArrayList<String>();
-		for (String systemName : systemsStatus.keySet()) {
-			offlineSystems.add(systemName);
-		}
-		
-		while (!offlineSystems.isEmpty()) {
-			List<String> remainingSystems = new ArrayList<String>(offlineSystems);
-			for (int i = 0; i < offlineSystems.size(); i++) {
-				String systemName = offlineSystems.get(i);
-				if (has(systemName) && Objects.equals(get(systemName), systemsStatus.get(systemName))) {
-					// Wait for all checks in System to be "ok"
-//					if (Objects.equals(systemName,"System")) {
-//						systemSystemsNeeded = checkSystem(systemSystemsNeeded);
-//						if (systemSystemsNeeded.size() > 0) {
-//							if (numSystemSystemsNeeded > systemSystemsNeeded.size()) {
-//								// Not all checks in System are good, but someone is now ok
-//								numSystemSystemsNeeded = systemSystemsNeeded.size();
-//								String missing = list2str(systemSystemsNeeded);
-//								printLog(systemName + ": missing [" + missing + "]");
-//							}
-//							continue;
-//						}
+//	public void waitArdupilotSystemsOnline() {
+//		printLog("Waiting for the ardupilot systems to be online.. ");
+//		
+//		// Map of < System name, Online status message >
+//		Map<String,String> systemsStatus = new HashMap<String,String>();
+//		systemsStatus.put("GCS bridge", "connected");
+//		systemsStatus.put("System", "Normal");
+//		systemsStatus.put("Heartbeat", "Normal");
+//		systemsStatus.put("GPS", "3D fix");
+//		systemsStatus.put("FCU connection", "connected");
+//		// TODO systemsStatus.put("Battery", "???");
+//		
+//		List<String> systemSystemsNeeded = new ArrayList<String>();
+//		systemSystemsNeeded.add("System 3D gyro");
+//		systemSystemsNeeded.add("System 3D accelerometer");
+//		systemSystemsNeeded.add("System 3D magnetometer");
+//		systemSystemsNeeded.add("System absolute pressure");
+//		systemSystemsNeeded.add("System GPS");
+//		systemSystemsNeeded.add("System 3D angular rate control");
+//		systemSystemsNeeded.add("System attitude stabilization");
+//		systemSystemsNeeded.add("System yaw position");
+//		systemSystemsNeeded.add("System motor outputs / control");
+//		systemSystemsNeeded.add("System rc receiver");
+//		systemSystemsNeeded.add("System AHRS subsystem health");
+//		systemSystemsNeeded.add("System Terrain subsystem health");
+//		systemSystemsNeeded.add("System Battery");
+//		int numSystemSystemsNeeded = systemSystemsNeeded.size();
+//		
+//		// Setting all the systems as offline before starting to check
+//		List<String> offlineSystems = new ArrayList<String>();
+//		for (String systemName : systemsStatus.keySet()) {
+//			offlineSystems.add(systemName);
+//		}
+//		
+//		while (!offlineSystems.isEmpty()) {
+//			List<String> remainingSystems = new ArrayList<String>(offlineSystems);
+//			for (int i = 0; i < offlineSystems.size(); i++) {
+//				String systemName = offlineSystems.get(i);
+//				if (executionEnvironment.has(systemName) && 
+//						Objects.equals(executionEnvironment.get(systemName), systemsStatus.get(systemName))) {
+//					// Wait for all checks in System to be "ok"
+////					if (Objects.equals(systemName,"System")) {
+////						systemSystemsNeeded = checkSystem(systemSystemsNeeded);
+////						if (systemSystemsNeeded.size() > 0) {
+////							if (numSystemSystemsNeeded > systemSystemsNeeded.size()) {
+////								// Not all checks in System are good, but someone is now ok
+////								numSystemSystemsNeeded = systemSystemsNeeded.size();
+////								String missing = list2str(systemSystemsNeeded);
+////								printLog(systemName + ": missing [" + missing + "]");
+////							}
+////							continue;
+////						}
+////					}
+//					offlineSystems.remove(i);
+//					i--;
+//					remainingSystems.remove(systemName);
+//					if (remainingSystems.size() > 0) {
+//						// Collecting remaining offline systems for printing purposes
+//						String missing = list2str(remainingSystems);
+//						printLog(systemName + " is online (" + systemsStatus.get(systemName) + ") missing [" + missing + "]");
 //					}
-					offlineSystems.remove(i);
-					i--;
-					remainingSystems.remove(systemName);
-					if (remainingSystems.size() > 0) {
-						// Collecting remaining offline systems for printing purposes
-						String missing = list2str(remainingSystems);
-						printLog(systemName + " is online (" + systemsStatus.get(systemName) + ") missing [" + missing + "]");
-					}
-					else {
-						printLog(systemName + " is online (" + systemsStatus.get(systemName) + ")");
-					}
-				}
-			}
-		}
-		printLog("All the systems are online");
-	}
-	
-	private String list2str(List<String> l) {
-		String s = "";
-		for (int i = 0; i < l.size(); i++) {
-			s += l.get(i);
-			if (i + 1 < l.size()) { 
-				s += ","; 
-			}
-		}
-		return s;
-	}
-	
-	private List<String> checkSystem(List<String> systemSystemsNeeded) {
-		for (int i = 0; i < systemSystemsNeeded.size(); i++) {
-			if (has(systemSystemsNeeded.get(i)) && Objects.equals(get(systemSystemsNeeded.get(i)), "Ok")) {
-				systemSystemsNeeded.remove(i);
-				i--;
-			}
-		}
-		return systemSystemsNeeded;
-	}
+//					else {
+//						printLog(systemName + " is online (" + systemsStatus.get(systemName) + ")");
+//					}
+//				}
+//			}
+//		}
+//		printLog("All the systems are online");
+//	}
+//	
+//	private String list2str(List<String> l) {
+//		String s = "";
+//		for (int i = 0; i < l.size(); i++) {
+//			s += l.get(i);
+//			if (i + 1 < l.size()) { 
+//				s += ","; 
+//			}
+//		}
+//		return s;
+//	}
+//	
+//	private List<String> checkSystem(List<String> systemSystemsNeeded) {
+//		for (int i = 0; i < systemSystemsNeeded.size(); i++) {
+//			if (executionEnvironment.has(systemSystemsNeeded.get(i)) && 
+//					Objects.equals(executionEnvironment.get(systemSystemsNeeded.get(i)), "Ok")) {
+//				systemSystemsNeeded.remove(i);
+//				i--;
+//			}
+//		}
+//		return systemSystemsNeeded;
+//	}
 	
 	public void waitArdupilotReady() {
 		printLog("Waiting for the ardupilot device to be connected..");
 		while (true) {
-			if (has("connected") && has("system_status")) {
-				if (getBool("connected") && (getByte("system_status")==3)) {
+			if (mavrosSubscribersManager.get_State().hasReceivedMessage()) {
+				mavros_msgs.State current_state = getState();
+				if (current_state.getConnected() && (byte2int(current_state.getSystemStatus()) == 3)) {
 					printLog("Ardupilot device connected");
+					setVehicleStatus("READY");
 					break;
 				}
 			}
@@ -131,31 +146,38 @@ public class ArdupilotManager {
 		}
 	}
 	
-	public String getStatus() {
-		if (has("waiting_takeoff") && getBool("waiting_takeoff")){
-			return "WAITING_TAKEOFF";
+	private boolean checkMessagesTimes(Time lowerTime, Time greaterTime, int sleetTimeMillis) {
+		if (greaterTime.compareTo(lowerTime) == 1) {
+			return true;
 		}
-		else if (has("takeoff") && getBool("takeoff")){
-			return "FLYING";
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			printLog("Interruption command received.. wakeup from sleep");
 		}
-		else if (has("landed") && getBool("landed")) {
-			return "LANDED";
-		}
-		else if (has("connected") && has("system_status") && getBool("connected") && (getByte("system_status")==3)) {
-			return "READY";
-		}
-		else {
-			return "UNKNOWN";
-		}
+		return false;
+	}
+	
+	public String getVehicleStatus() {
+		return vehicleStatus;
+	}
+	
+	private void setVehicleStatus(String status) {
+		vehicleStatus = status;
 	}
 	
 	public void disablePreArmChecks() {
 		printLog("Disabling pre-arm checks.. ");
-		serviceManager.paramSet("ARMING_CHECK", 0);
-		try {
-			Thread.sleep(10000);
-		} catch (InterruptedException e) {
-			printLog("Interruption command received.. wakeup from sleep");
+		mavros_msgs.ParamSetRequest request = mavrosServicesManager.get_ParamSet().newRequest();
+		mavros_msgs.ParamValue pv = mavrosMessagesManager.getParamValueMessage(0);
+		request.setParamId("ARMING_CHECK");
+		request.setValue(pv);
+		mavrosServicesManager.get_ParamSet().callSynch(request, 1000);
+		if (mavrosServicesManager.get_ParamSet().getResponse().getSuccess()) {
+			printLog("Pre-arm checks disabled");
+		}
+		else {
+			printLog("Error on disabling pre-arm checks");
 		}
 	}
 	
@@ -163,17 +185,34 @@ public class ArdupilotManager {
 		Double latitude = null;
 		Double longitude = null;
 		Double altitude = null;
-		String fromTopic = "global_position/global/";
-		if (has(fromTopic + "latitude")) {
-			latitude = getDouble(fromTopic + "latitude");
-		}
-		if (has(fromTopic + "longitude")) {
-			longitude = getDouble(fromTopic + "longitude");
-		}
-		if (has(fromTopic + "altitude")) {
-			altitude = getDouble(fromTopic + "altitude");
+		if (mavrosSubscribersManager.get_GlobalPositionGlobal().hasReceivedMessage()) {
+			sensor_msgs.NavSatFix gpg = mavrosSubscribersManager.get_GlobalPositionGlobal().getReceivedMessage();
+			latitude = gpg.getLatitude();
+			longitude = gpg.getLongitude();
+			altitude = getRelAltitude();
 		}
 		return new Double[]{latitude, longitude, altitude};
+	}
+	
+	public Double getLatitude() {
+		return getCoordinates()[0];
+	}
+	
+	public Double getLongitude() {
+		return getCoordinates()[1];
+	}
+	
+	public Double getAltitude() {
+		return getCoordinates()[2];
+	}
+	
+	public Double getRelAltitude() {
+		if (mavrosSubscribersManager.get_GlobalPositionRelAlt().hasReceivedMessage()) {
+			return mavrosSubscribersManager.get_GlobalPositionRelAlt().getReceivedMessage().getData();
+		}
+		else {
+			return null;
+		}
 	}
 	
 	public void takeoff(double altitude) {
@@ -182,10 +221,53 @@ public class ArdupilotManager {
 	
 	public void takeoff(Float min_pitch, Float yaw, Float latitude, Float longitude, Float altitude) {
 		printLog("Initializing takeoff.. ");
-		put("waiting_takeoff", true);
-//		disablePreArmChecks();
-		setMode("GUIDED");
-		arming(true);
+		if (isFlying()) {
+			printLog("Takeoff error: the vehicle is already flying (altitude: " + getAltitude().toString() + ")");
+		}
+		else {
+			setVehicleStatus("WAITING_TAKEOFF");
+//			disablePreArmChecks();
+			setMode("GUIDED");
+			arming(true);
+			printLog(getTakeoffInfo(min_pitch, yaw, latitude, longitude, altitude));
+			mavros_msgs.CommandTOLRequest request = setTakeoffRequest(min_pitch, yaw, latitude, longitude, altitude);
+			mavrosServicesManager.get_CmdTakeoff().callSynch(request, 1000);
+			if ( (!mavrosServicesManager.get_CmdTakeoff().getResponse().getSuccess()) && (!isFlying()) ) {
+				printLog("Takeoff failed.. retry takeoff.. ");
+				takeoff(min_pitch, yaw, latitude, longitude, altitude);
+			}
+			else {
+				setVehicleStatus("FLYING");
+			}
+		}
+	}
+	
+	private mavros_msgs.CommandTOLRequest setTakeoffRequest(Float min_pitch, Float yaw, Float latitude, Float longitude, Float altitude) {
+		mavros_msgs.CommandTOLRequest request = mavrosServicesManager.get_CmdTakeoff().newRequest();
+		if (altitude != null) {
+			request.setAltitude(altitude);
+		}
+		if (latitude != null) {
+			request.setLatitude(latitude);
+		}
+		if (longitude != null) {
+			request.setLongitude(longitude);
+		}
+		if (min_pitch != null) {
+			request.setMinPitch(min_pitch);
+		}
+		if (yaw != null) {
+			request.setYaw(yaw);
+		}
+		return request;
+	}
+	
+	public boolean isFlying() {
+		Double altitude = getRelAltitude();
+		return (altitude != null) && (altitude > takeoffMinimumAltitude);
+	}
+	
+	private String getTakeoffInfo(Float min_pitch, Float yaw, Float latitude, Float longitude, Float altitude) {
 		String toPrint = "Takeoff.. (";
 		if (min_pitch != null)
 			toPrint += Float.toString(min_pitch);
@@ -207,106 +289,99 @@ public class ArdupilotManager {
 			toPrint += "," + Float.toString(altitude) + ")";
 		else 
 			toPrint += ",null)";
-		printLog(toPrint);
-		put("takeoff_fail",false);
-		serviceManager.takeoff(min_pitch, yaw, latitude, longitude, altitude);
-		while ((!getBool("takeoff")) && getDouble("altezza") <= 0.1) {
-			if(has("takeoff_fail") && getBool("takeoff_fail")) {
-				printLog("Takeoff failed.. retry takeoff.. ");
-				put("takeoff_fail",false);
-				serviceManager.takeoff(min_pitch, yaw, latitude, longitude, altitude);
-			}
-			else {
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					printLog("Interruption command received.. wakeup from sleep");
-				}
-			}
-		}
-		put("waiting_takeoff", false);
-		put("takeoff",true);
+		return toPrint;
 	}
 	
 	public void setMode(String mode) {
-		printLog("Set mode " + mode + ".. ");
-		serviceManager.setMode(mode);
-		while (!Objects.equals(getString("mode"),mode)) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				printLog("Interruption command received.. wakeup from sleep");
+		printLog("Setting mode to '" + mode + "'.. ");
+		if (checkMode(mode)) {
+			printLog("The vehicle mode is already set to '" + mode + "'");
+		}
+		else {
+			mavros_msgs.SetModeRequest request = mavrosServicesManager.get_SetMode().newRequest();
+			request.setCustomMode(mode);
+			mavrosServicesManager.get_SetMode().callSynch(request, 1000);
+			Time responseTime = mavrosServicesManager.get_SetMode().getResponseTime();
+			if ( mavrosServicesManager.get_SetMode().getResponse().getModeSent() && checkMode(mode, responseTime, 1000) ) {
+				printLog("Mode set to '" + mode + "'");
+			}
+			else {
+				printLog("Set mode failed.. retry setting mode to '" + mode + "'");
+				setMode(mode);
 			}
 		}
-		printLog("Mode GUIDED");
+	}
+	
+	public mavros_msgs.State getState() {
+		return mavrosSubscribersManager.get_State().getReceivedMessage();
+	}
+	
+	public mavros_msgs.State getStateAfterTime(Time afterTime, int sleetTimeMillis) {
+		mavros_msgs.State current_state = getState();
+		while (!checkMessagesTimes(afterTime, current_state.getHeader().getStamp(), sleetTimeMillis)) {
+			current_state = getState();
+		}
+		return current_state;
+	}
+	
+	public String getMode() {
+		mavros_msgs.State state = getState();
+		if (state == null) {
+			return null;
+		}
+		else {
+			return state.getMode();
+		}
+	}
+	
+	public boolean checkMode(String mode) {
+		return Objects.equals(getMode(),mode);
+	}
+	
+	public boolean checkMode(String mode, Time afterTime, int sleetTimeMillis) {
+		return Objects.equals(getStateAfterTime(afterTime, sleetTimeMillis).getMode(), mode);
 	}
 	
 	public void arming(boolean arm) {
-		if (arm) {
-			printLog("Arming.. ");
+		printLog(arm ? "Arming.. " : "Disarming.. ");
+		if (checkArmed(arm)) {
+			printLog("The vehicle is already " + (arm ? "armed" : "disarmed"));
 		}
 		else {
-			printLog("Disarming.. ");
-		}
-		put("arming_fail",false);
-		serviceManager.arming(arm);
-		while (!getBool("armed") == arm) {
-			if(has("arming_fail") && getBool("arming_fail")) {
-				if (arm) {
-					printLog("Arming failed.. retry arming.. ");
-				}
-				else {
-					printLog("Disarming failed.. retry disarming.. ");
-				}
-				put("arming_fail",false);
-				serviceManager.arming(arm);
+			mavros_msgs.CommandBoolRequest request = mavrosServicesManager.get_CmdArming().newRequest();
+			request.setValue(arm);
+			mavrosServicesManager.get_CmdArming().callSynch(request, 1000);
+			Time responseTime = mavrosServicesManager.get_CmdArming().getResponseTime();
+			if ( mavrosServicesManager.get_CmdArming().getResponse().getSuccess() && checkArmed(arm, responseTime, 1000) ) {
+				printLog("The vehicle is now " + (arm? "armed" : "disarmed"));
 			}
 			else {
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					printLog("Interruption command received.. wakeup from sleep");
-				}
+				printLog((arm ? "Arming " : "Disarming ") + "failed.. retry " + (arm ? "arming " : "disarming "));
+				arming(arm);
 			}
 		}
-		if (arm) {
-			printLog("Armed");
+	}
+	
+	public boolean isArmed() {
+		mavros_msgs.State state = getState();
+		if (state == null) {
+			return false;
 		}
 		else {
-			printLog("Disarmed");
+			return state.getArmed();
 		}
 	}
 	
-	private String getString(String key) {
-		return (String) get(key);
+	public boolean checkArmed(boolean arm) {
+		return isArmed() == arm;
 	}
 	
-	private boolean getBool(String key) {
-		return (boolean) get(key);
+	public boolean checkArmed(boolean arm, Time afterTime, int sleetTimeMillis) {
+		return getStateAfterTime(afterTime, sleetTimeMillis).getArmed() == arm;
 	}
 	
-	private int getInt(String key) {
-		return (int) get(key);
-	}
-	
-	private double getDouble(String key) {
-		return (double) get(key);
-	}
-	
-	private int getByte(String key) {
-		return (new Byte((byte) get(key))).intValue();
-	}
-	
-	private Object get(String key) {
-		return executionEnvironment.get(key);
-	}
-	
-	private boolean has(String key) {
-		return executionEnvironment.has(key);
-	}
-	
-	private void put(String key, Object value) {
-		executionEnvironment.put(key, value);
+	private int byte2int(Byte b) {
+		return b.intValue();
 	}
 	
 	private void printLog(String message) {

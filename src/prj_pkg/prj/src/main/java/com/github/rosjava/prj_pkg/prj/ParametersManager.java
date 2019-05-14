@@ -13,9 +13,9 @@ public class ParametersManager {
 	private final ConnectedNode connectedNode;
 	private final DefaultParameterTree params;
 	
-	public ParametersManager(PrjNode prjNode, ConnectedNode connectedNode) {
+	public ParametersManager(PrjNode prjNode) {
 		this.prjNode = prjNode;
-		this.connectedNode = connectedNode;
+		this.connectedNode = prjNode.getConnectedNode();
 		params = (DefaultParameterTree) connectedNode.getParameterTree();
 	}
 	

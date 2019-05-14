@@ -40,9 +40,9 @@ public class NeighborManager {
 	private CancellableLoop neighborDiscoveryPublisherLoop;
 	private Map<DeviceUID, Publisher<rosjava_custom_msg.StateWithID>> publishers = new HashMap<>();
 	
-	public NeighborManager(PrjNode prjNode, ConnectedNode connectedNode) {
+	public NeighborManager(PrjNode prjNode) {
 		this.prjNode = prjNode;
-		this.connectedNode = connectedNode;
+		this.connectedNode = prjNode.getConnectedNode();
 		
 		deviceUID = prjNode.getDeviceUID();
 		deviceGsonID = gson.toJson(deviceUID);

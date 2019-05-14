@@ -1,30 +1,24 @@
-package com.github.rosjava.prj_pkg.prj;
+package com.github.rosjava.prj_pkg.prj.Mavros;
 
-import org.protelis.vm.ExecutionEnvironment;
 import org.ros.message.MessageListener;
 import org.ros.node.ConnectedNode;
 import org.ros.node.topic.Subscriber;
 
-public class MavrosSubscriber<T> {
+public class MavrosSubscriber<T> extends MavrosReceiver<T>{
 	
 	private Subscriber<T> subscriber;
 	private MessageListener<T> messageListener;
-	private final ExecutionEnvironment executionEnv;
-	private final String objTopicName;
 	private boolean isSubscribed = false;
 	
-	public MavrosSubscriber(ConnectedNode connectedNode, ExecutionEnvironment executionEnvironment, 
-			String mavrosPrefix, String topicName, String topicType) {
-		objTopicName = topicName;
-		executionEnv = executionEnvironment;
-		String topicCompleteName = mavrosPrefix + topicName;
+	public MavrosSubscriber(ConnectedNode connectedNode, String topicCompleteName, String topicType) {
 		subscriber = connectedNode.newSubscriber(topicCompleteName, topicType);
 		messageListener = new MessageListener<T>() {
 			@Override
 			public void onNewMessage(T message) {
-				executionEnv.put(objTopicName, message);
+				addReceivedMessage(message);
 			}
 		};
+		subscribe();
 	}
 	
 	public void subscribe() {
