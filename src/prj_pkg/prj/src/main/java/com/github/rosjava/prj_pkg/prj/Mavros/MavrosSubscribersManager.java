@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.ros.exception.RosRuntimeException;
 import org.ros.node.ConnectedNode;
 
 import com.github.rosjava.prj_pkg.prj.PrjNode;
@@ -19,7 +20,10 @@ public class MavrosSubscribersManager {
 	private List<String> interestedTopics = Arrays.asList(
 			"state",
 			"global_position/global",
-			"global_position/rel_alt"
+			"global_position/rel_alt",
+			"local_position/pose",
+			"mission/reached",
+			"mission/waypoints"
 			); 
 	
 	public MavrosSubscribersManager(PrjNode prjNode) {
@@ -42,13 +46,11 @@ public class MavrosSubscribersManager {
 	}
 	
 	private void setupMavrosSubscribers() {
+		prjNode.printLog("Setup subscribers.. ");
 //		subscribers.put("mavlink/from", new MavrosSubscriber<mavros_msgs.Mavlink>(connectedNode, mavrosPrefix + "mavlink/from", mavros_msgs.Mavlink._TYPE));
 //		subscribers.put("diagnostics", new MavrosSubscriber<diagnostic_msgs.DiagnosticStatus>(connectedNode, mavrosPrefix + "diagnostics", diagnostic_msgs.DiagnosticStatus._TYPE));
-//		subscribers.put("radio_status", new MavrosSubscriber<mavros_msgs.RadioStatus>(connectedNode, mavrosPrefix + "radio_status", mavros_msgs.RadioStatus._TYPE));
-//		subscribers.put("hil_controls/hil_controls", new MavrosSubscriber<mavros_msgs.HilControls>(connectedNode, mavrosPrefix + "hil_controls/hil_controls", mavros_msgs.HilControls._TYPE));
 		subscribers.put("global_position/global", new MavrosSubscriber<sensor_msgs.NavSatFix>(connectedNode, mavrosPrefix + "global_position/global", sensor_msgs.NavSatFix._TYPE));
 //		subscribers.put("global_position/local", new MavrosSubscriber<geometry_msgs.PoseWithCovarianceStamped>(connectedNode, mavrosPrefix + "global_position/local", geometry_msgs.PoseWithCovarianceStamped._TYPE));
-//		subscribers.put("global_position/gp_vel", new MavrosSubscriber<geometry_msgs.TwistStamped>(connectedNode, mavrosPrefix + "global_position/gp_vel", geometry_msgs.TwistStamped._TYPE));
 		subscribers.put("global_position/rel_alt", new MavrosSubscriber<std_msgs.Float64>(connectedNode, mavrosPrefix + "global_position/rel_alt", std_msgs.Float64._TYPE));
 //		subscribers.put("global_position/compass_hdg", new MavrosSubscriber<std_msgs.Float64>(connectedNode, mavrosPrefix + "global_position/compass_hdg", std_msgs.Float64._TYPE));
 //		subscribers.put("global_position/raw/fix", new MavrosSubscriber<sensor_msgs.NavSatFix>(connectedNode, mavrosPrefix + "global_position/raw/fix", sensor_msgs.NavSatFix._TYPE));
@@ -56,10 +58,7 @@ public class MavrosSubscribersManager {
 //		subscribers.put("imu/data", new MavrosSubscriber<sensor_msgs.Imu>(connectedNode, mavrosPrefix + "imu/data", sensor_msgs.Imu._TYPE));
 //		subscribers.put("imu/data_raw", new MavrosSubscriber<sensor_msgs.Imu>(connectedNode, mavrosPrefix + "imu/data_raw", sensor_msgs.Imu._TYPE));
 //		subscribers.put("imu/mag", new MavrosSubscriber<sensor_msgs.MagneticField>(connectedNode, mavrosPrefix + "imu/mag", sensor_msgs.MagneticField._TYPE));
-//		subscribers.put("imu/temperature", new MavrosSubscriber<sensor_msgs.Temperature>(connectedNode, mavrosPrefix + "imu/temperature", sensor_msgs.Temperature._TYPE));
-//		subscribers.put("imu/atm_pressure", new MavrosSubscriber<sensor_msgs.FluidPressure>(connectedNode, mavrosPrefix + "imu/atm_pressure", sensor_msgs.FluidPressure._TYPE));
-//		subscribers.put("local_position/pose", new MavrosSubscriber<geometry_msgs.PoseStamped>(connectedNode, mavrosPrefix + "local_position/pose", geometry_msgs.PoseStamped._TYPE));
-//		subscribers.put("local_position/velocity", new MavrosSubscriber<geometry_msgs.TwistStamped>(connectedNode, mavrosPrefix + "local_position/velocity", geometry_msgs.TwistStamped._TYPE));
+		subscribers.put("local_position/pose", new MavrosSubscriber<geometry_msgs.PoseStamped>(connectedNode, mavrosPrefix + "local_position/pose", geometry_msgs.PoseStamped._TYPE));
 //		subscribers.put("manual_control/control", new MavrosSubscriber<mavros_msgs.ManualControl>(connectedNode, mavrosPrefix + "manual_control/control", mavros_msgs.ManualControl._TYPE));
 //		subscribers.put("rc/in", new MavrosSubscriber<mavros_msgs.RCIn>(connectedNode, mavrosPrefix + "rc/in", mavros_msgs.RCIn._TYPE));
 //		subscribers.put("rc/out", new MavrosSubscriber<mavros_msgs.RCOut>(connectedNode, mavrosPrefix + "rc/out", mavros_msgs.RCOut._TYPE));
@@ -67,14 +66,36 @@ public class MavrosSubscribersManager {
 //		subscribers.put("setpoint_raw/target_global", new MavrosSubscriber<mavros_msgs.GlobalPositionTarget>(connectedNode, mavrosPrefix + "setpoint_raw/target_global", mavros_msgs.GlobalPositionTarget._TYPE));
 //		subscribers.put("setpoint_raw/target_attitude", new MavrosSubscriber<mavros_msgs.AttitudeTarget>(connectedNode, mavrosPrefix + "setpoint_raw/target_attitude", mavros_msgs.AttitudeTarget._TYPE));
 		subscribers.put("state", new MavrosSubscriber<mavros_msgs.State>(connectedNode, mavrosPrefix + "state", mavros_msgs.State._TYPE));
-//		subscribers.put("battery", new MavrosSubscriber<mavros_msgs.BatteryStatus>(connectedNode, mavrosPrefix + "battery", mavros_msgs.BatteryStatus._TYPE));
 //		subscribers.put("battery", new MavrosSubscriber<sensor_msgs.BatteryState>(connectedNode, mavrosPrefix + "battery", sensor_msgs.BatteryState._TYPE));
-//		subscribers.put("extended_state", new MavrosSubscriber<mavros_msgs.ExtendedState>(connectedNode, mavrosPrefix + "extended_state", mavros_msgs.ExtendedState._TYPE));
 //		subscribers.put("time_reference", new MavrosSubscriber<sensor_msgs.TimeReference>(connectedNode, mavrosPrefix + "time_reference", sensor_msgs.TimeReference._TYPE));
 //		subscribers.put("vfr_hud", new MavrosSubscriber<mavros_msgs.VFR_HUD>(connectedNode, mavrosPrefix + "vfr_hud", mavros_msgs.VFR_HUD._TYPE));
 //		subscribers.put("wind_estimation", new MavrosSubscriber<geometry_msgs.TwistStamped>(connectedNode, mavrosPrefix + "wind_estimation", geometry_msgs.TwistStamped._TYPE));
-//		subscribers.put("mission/reached", new MavrosSubscriber<mavros_msgs.WaypointReached>(connectedNode, mavrosPrefix + "mission/reached", mavros_msgs.WaypointReached._TYPE));
-//		subscribers.put("mission/waypoints", new MavrosSubscriber<mavros_msgs.WaypointList>(connectedNode, mavrosPrefix + "mission/waypoints", mavros_msgs.WaypointList._TYPE));
+		subscribers.put("mission/reached", new MavrosSubscriber<mavros_msgs.WaypointReached>(connectedNode, mavrosPrefix + "mission/reached", mavros_msgs.WaypointReached._TYPE));
+		subscribers.put("mission/waypoints", new MavrosSubscriber<mavros_msgs.WaypointList>(connectedNode, mavrosPrefix + "mission/waypoints", mavros_msgs.WaypointList._TYPE));
+
+		// Not used in APM:
+//		subscribers.put("extended_state", new MavrosSubscriber<mavros_msgs.ExtendedState>(connectedNode, mavrosPrefix + "extended_state", mavros_msgs.ExtendedState._TYPE));
+
+		
+//		// MISSING:
+//		subscribers.put("radio_status", new MavrosSubscriber<mavros_msgs.RadioStatus>(connectedNode, mavrosPrefix + "radio_status", mavros_msgs.RadioStatus._TYPE));
+//		subscribers.put("hil_controls/hil_controls", new MavrosSubscriber<mavros_msgs.HilControls>(connectedNode, mavrosPrefix + "hil_controls/hil_controls", mavros_msgs.HilControls._TYPE));
+//		subscribers.put("global_position/gp_vel", new MavrosSubscriber<geometry_msgs.TwistStamped>(connectedNode, mavrosPrefix + "global_position/gp_vel", geometry_msgs.TwistStamped._TYPE));
+//		subscribers.put("imu/temperature", new MavrosSubscriber<sensor_msgs.Temperature>(connectedNode, mavrosPrefix + "imu/temperature", sensor_msgs.Temperature._TYPE));
+//		subscribers.put("imu/atm_pressure", new MavrosSubscriber<sensor_msgs.FluidPressure>(connectedNode, mavrosPrefix + "imu/atm_pressure", sensor_msgs.FluidPressure._TYPE));
+//		subscribers.put("local_position/velocity", new MavrosSubscriber<geometry_msgs.TwistStamped>(connectedNode, mavrosPrefix + "local_position/velocity", geometry_msgs.TwistStamped._TYPE));
+		
+		waitSubscribersRegistration();
+	}
+	
+	private void waitSubscribersRegistration() {
+		prjNode.printLog("Waiting for subscribers registration with the master.. ");
+		for (String topic : subscribers.keySet()) {
+			if (!subscribers.get(topic).waitMasterRegistration()) {
+				throw new RosRuntimeException("Subscriber '" + topic + "' NOT registered with master");
+			}
+		}
+		prjNode.printLog("All subscribers have been registered with the master");
 	}
 	
 	/**
@@ -301,15 +322,6 @@ public class MavrosSubscribersManager {
 	public MavrosSubscriber<mavros_msgs.State> get_State() {
 		return (MavrosSubscriber<mavros_msgs.State>) subscribers.get("state");
 	}
-
-//	/**
-//	 * Subscribing topic: "battery"
-//	 * Message type: mavros_msgs.BatteryStatus
-//	 **/
-//	@SuppressWarnings("unchecked")
-//	public MavrosSubscriber<mavros_msgs.BatteryStatus> get_Battery() {
-//		return (MavrosSubscriber<mavros_msgs.BatteryStatus>) subscribers.get("battery");
-//	}
 
 	/**
 	 * Subscribing topic: "battery"

@@ -10,6 +10,9 @@
 
 	<arg name="system_id" default="1" />	
 	
+	<!-- To prevent mavros warning: 'TM : RTT too high for timesync' -->
+	<arg name="timesync_rate" default="10.0" />
+	
 	<!-- namespace like dev1, dev2, ... -->
 	<group ns="dev$(arg system_id)">
 		
@@ -43,6 +46,7 @@
 			<!-- <param name="component_id" value="$(arg component_id)" /> -->
 			<param name="target_component_id" value="$(arg tgt_component)" />
 			<param name="fcu_protocol" value="$(arg fcu_protocol)" />
+			<param name="timesync_rate" value="$(arg timesync_rate)" />
 
 			<!-- load blacklist, config -->
 			<rosparam command="load" file="$(arg pluginlists_yaml)" />

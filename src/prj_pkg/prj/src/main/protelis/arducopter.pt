@@ -13,17 +13,47 @@ if (status == "READY") {
 	let c = (2 + random() * (8 - 2));
 	self.getArdupilotManager().takeoff(c);
 }
-else { if (status == "WAITING_TAKEOFF") {
+else { if (status == "INITIALIZING_TAKEOFF") {
 	0
 }
-else { if (status == "FLYING") {
+else { if ( (status == "TAKING_OFF") || (status == "LANDING") ) {
 	let altitude = self.getArdupilotManager().getAltitude();
 	self.announce("My altitude is " + altitude);
 	self.announce("The maximum altitude is " + maxh(altitude));
 }
+else { if (status == "ON_AIR") {
+	if (env.has("mission_completed")) {
+		let mc = env.get("mission_completed");
+		if (mc) {
+			self.announce("mission completed");
+			self.getArdupilotManager().land();
+		}
+		else {
+			self.announce("mission NOT completed");
+			0;
+		}
+	}
+	else {
+		
+		//let c = self.getCoordinates();
+		//self.getArdupilotManager().waypointPush(c.get(0)+10.0,c.get(1)+10.0,c.get(2));
+		//self.getArdupilotManager().setMode("AUTO");
+		
+		self.getArdupilotManager().moveLocal(10.0,10.0,10.0);
+		
+		self.announce("Moving");
+		env.put("mission_completed",true);
+	}
+}
 else { if (status == "LANDED") {
+	0
+}
+else { if (status == "ON_GROUND") {
+	0
+}
+else { if (status == "MOVING") {
 	0
 }
 else {
 	self.announce("Error: Status '" + status + "' unknown!");
-}}}}
+}}}}}}}

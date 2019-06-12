@@ -17,6 +17,7 @@
 package com.github.rosjava.prj_pkg.prj;
 
 import java.util.List;
+import java.util.Objects;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -41,7 +42,8 @@ import org.ros.node.Node;
 import org.ros.node.ConnectedNode;
 import org.ros.node.NodeMain;
 
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosMessagesManager;
+import com.github.rosjava.prj_pkg.prj.Ardupilot.ArducopterManager;
+import com.github.rosjava.prj_pkg.prj.Ardupilot.ArdupilotManager;
 import com.github.rosjava.prj_pkg.prj.Mavros.MavrosParametersManager;
 import com.github.rosjava.prj_pkg.prj.Mavros.MavrosPublishersManager;
 import com.github.rosjava.prj_pkg.prj.Mavros.MavrosServicesManager;
@@ -67,6 +69,7 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	
 	private ConnectedNode connectedNode;
 	private Integer system_id;
+	private String vehicleType;
 	
 	// Where we will print
 	private Log log;
@@ -81,7 +84,6 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	private Process mavrosProcess;
 	private File mavrosLogFile;
 	
-	private MavrosMessagesManager mavrosMessagesManager;
 	private MavrosParametersManager mavrosParametersManager;
 	private NeighborManager neighborManager;
 	private MavrosSubscribersManager mavrosSubscribersManager;
@@ -211,10 +213,10 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	 */
 	@Override
 	public Tuple getCoordinates() {
-		final Double[] cd = ardupilotManager.getCoordinates();
-		Tuple c = new ArrayTupleImpl(0, cd.length);
-		for (int i = 0; i < cd.length; i++) {
-			c = c.set(i, cd[i]);
+		final List<Double> cd = ardupilotManager.getCoordinates();
+		Tuple c = new ArrayTupleImpl(0, cd.size());
+		for (int i = 0; i < cd.size(); i++) {
+			c = c.set(i, cd.get(i));
 	    }
 	    return c;
 	}
@@ -268,15 +270,15 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		setupProtelis();
 		setupUIDs();
 		
-		launchMavrosNode();
+//		launchMavrosNode();
 		
 		neighborManager = new NeighborManager(this);
 		
 		mavrosSubscribersManager = new MavrosSubscribersManager(this);
-		mavrosPublishersManager = new MavrosPublishersManager(connectedNode);
-		mavrosMessagesManager = new MavrosMessagesManager(connectedNode);
+		mavrosPublishersManager = new MavrosPublishersManager(this);
 		mavrosServicesManager = new MavrosServicesManager(this);
-		ardupilotManager = new ArdupilotManager(this);
+		// Setup the ardupilot manager corresponding to the current vehicle type
+		setupArdupilot();
 		
 		// Blocking here until the ardupilot device state is connected
 		// ardupilotManager.waitArdupilotSystemsOnline();
@@ -285,6 +287,7 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 //		mavrosSubscribersManager.subscribeInterestedTopics();
 		ardupilotManager.waitArdupilotReady();
 		mavrosServicesManager.setupServices();
+		mavrosPublishersManager.setupPublishers();
 		
 		// Execute in loop the protelis program
 		runSynchronizer();
@@ -333,6 +336,22 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		}
 	}
 	
+	private void setupArdupilot() {
+		vehicleType = mavrosParametersManager.getStringParam("~vehicle_type");
+		if (vehicleType == null) {
+			printLog("The vehicle type is not present in the parameters.. cannot execute without it. Abort and exit.");
+			// TODO exit here with error
+		}
+		else if (Objects.equals(vehicleType, "copter")) {
+			printLog("Correctly setup vehicle type to '" + vehicleType + "'");
+			ardupilotManager = new ArducopterManager(this);
+		}
+		else {
+			printLog("The vehicle type '" + vehicleType + "' is unknown. Abort and exit.");
+			// TODO exit here with error
+		}
+	}
+	
 	private void launchMavrosNode() {
 		// Setup log file:
 		mavrosLogFile = new File(baseLogDirectory + getMavrosNamespace() + "_mavros.log");
@@ -365,10 +384,6 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	/**
 	 * NOTE: The method getExecutionEnvironment() is implemented in AbstractExecutionContext
 	 */
-	
-	public MavrosMessagesManager getMavrosMessagesManager() {
-		return mavrosMessagesManager;
-	}
 	
 	public MavrosParametersManager getMavrosParametersManager() {
 		return mavrosParametersManager;

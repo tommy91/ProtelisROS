@@ -3,6 +3,8 @@ package com.github.rosjava.prj_pkg.prj.Mavros;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.ros.exception.RosRuntimeException;
+
 import com.github.rosjava.prj_pkg.prj.PrjNode;
 
 public class MavrosServicesManager {
@@ -28,6 +30,18 @@ public class MavrosServicesManager {
 		services.put("cmd/takeoff", new MavrosService<mavros_msgs.CommandTOLRequest, mavros_msgs.CommandTOLResponse>(prjNode, mavrosPrefix + "cmd/takeoff", mavros_msgs.CommandTOL._TYPE));
 		services.put("cmd/land", new MavrosService<mavros_msgs.CommandTOLRequest, mavros_msgs.CommandTOLResponse>(prjNode, mavrosPrefix + "cmd/land", mavros_msgs.CommandTOL._TYPE));
 		services.put("cmd/trigger_control", new MavrosService<mavros_msgs.CommandTriggerControlRequest, mavros_msgs.CommandTriggerControlResponse>(prjNode, mavrosPrefix + "cmd/trigger_control", mavros_msgs.CommandTriggerControl._TYPE));
+		services.put("param/pull", new MavrosService<mavros_msgs.ParamPullRequest, mavros_msgs.ParamPullResponse>(prjNode, mavrosPrefix + "param/pull", mavros_msgs.ParamPull._TYPE));
+		services.put("param/push", new MavrosService<mavros_msgs.ParamPushRequest, mavros_msgs.ParamPushResponse>(prjNode, mavrosPrefix + "param/push", mavros_msgs.ParamPush._TYPE));
+		services.put("param/get", new MavrosService<mavros_msgs.ParamGetRequest, mavros_msgs.ParamGetResponse>(prjNode, mavrosPrefix + "param/get", mavros_msgs.ParamGet._TYPE));
+		services.put("param/set", new MavrosService<mavros_msgs.ParamSetRequest, mavros_msgs.ParamSetResponse>(prjNode, mavrosPrefix + "param/set", mavros_msgs.ParamSet._TYPE));
+		services.put("set_stream_rate", new MavrosService<mavros_msgs.StreamRateRequest, mavros_msgs.StreamRateResponse>(prjNode, mavrosPrefix + "set_stream_rate", mavros_msgs.StreamRate._TYPE));
+		services.put("set_mode", new MavrosService<mavros_msgs.SetModeRequest, mavros_msgs.SetModeResponse>(prjNode, mavrosPrefix + "set_mode", mavros_msgs.SetMode._TYPE));
+		services.put("mission/pull", new MavrosService<mavros_msgs.WaypointPullRequest, mavros_msgs.WaypointPullResponse>(prjNode, mavrosPrefix + "mission/pull", mavros_msgs.WaypointPull._TYPE));
+		services.put("mission/push", new MavrosService<mavros_msgs.WaypointPushRequest, mavros_msgs.WaypointPushResponse>(prjNode, mavrosPrefix + "mission/push", mavros_msgs.WaypointPush._TYPE));
+		services.put("mission/clear", new MavrosService<mavros_msgs.WaypointClearRequest, mavros_msgs.WaypointClearResponse>(prjNode, mavrosPrefix + "mission/clear", mavros_msgs.WaypointClear._TYPE));
+		services.put("mission/set_current", new MavrosService<mavros_msgs.WaypointSetCurrentRequest, mavros_msgs.WaypointSetCurrentResponse>(prjNode, mavrosPrefix + "mission/set_current", mavros_msgs.WaypointSetCurrent._TYPE));
+
+//		// MISSING:
 //		services.put("ftp/open", new MavrosService<mavros_msgs.FileOpenRequest, mavros_msgs.FileOpenResponse>(prjNode, mavrosPrefix + "ftp/open", mavros_msgs.FileOpen._TYPE));
 //		services.put("ftp/close", new MavrosService<mavros_msgs.FileCloseRequest, mavros_msgs.FileCloseResponse>(prjNode, mavrosPrefix + "ftp/close", mavros_msgs.FileClose._TYPE));
 //		services.put("ftp/read", new MavrosService<mavros_msgs.FileReadRequest, mavros_msgs.FileReadResponse>(prjNode, mavrosPrefix + "ftp/read", mavros_msgs.FileRead._TYPE));
@@ -40,17 +54,7 @@ public class MavrosServicesManager {
 //		services.put("ftp/rmdir", new MavrosService<mavros_msgs.FileRemoveDirRequest, mavros_msgs.FileRemoveDirResponse>(prjNode, mavrosPrefix + "ftp/rmdir", mavros_msgs.FileRemoveDir._TYPE));
 //		services.put("ftp/checksum", new MavrosService<mavros_msgs.FileChecksumRequest, mavros_msgs.FileChecksumResponse>(prjNode, mavrosPrefix + "ftp/checksum", mavros_msgs.FileChecksum._TYPE));
 //		services.put("ftp/reset", new MavrosService<std_srvs.EmptyRequest, std_srvs.EmptyResponse>(prjNode, mavrosPrefix + "ftp/reset", std_srvs.Empty._TYPE));
-		services.put("param/pull", new MavrosService<mavros_msgs.ParamPullRequest, mavros_msgs.ParamPullResponse>(prjNode, mavrosPrefix + "param/pull", mavros_msgs.ParamPull._TYPE));
-		services.put("param/push", new MavrosService<mavros_msgs.ParamPushRequest, mavros_msgs.ParamPushResponse>(prjNode, mavrosPrefix + "param/push", mavros_msgs.ParamPush._TYPE));
-		services.put("param/get", new MavrosService<mavros_msgs.ParamGetRequest, mavros_msgs.ParamGetResponse>(prjNode, mavrosPrefix + "param/get", mavros_msgs.ParamGet._TYPE));
-		services.put("param/set", new MavrosService<mavros_msgs.ParamSetRequest, mavros_msgs.ParamSetResponse>(prjNode, mavrosPrefix + "param/set", mavros_msgs.ParamSet._TYPE));
-		services.put("set_stream_rate", new MavrosService<mavros_msgs.StreamRateRequest, mavros_msgs.StreamRateResponse>(prjNode, mavrosPrefix + "set_stream_rate", mavros_msgs.StreamRate._TYPE));
-		services.put("set_mode", new MavrosService<mavros_msgs.SetModeRequest, mavros_msgs.SetModeResponse>(prjNode, mavrosPrefix + "set_mode", mavros_msgs.SetMode._TYPE));
-		services.put("mission/pull", new MavrosService<mavros_msgs.WaypointPullRequest, mavros_msgs.WaypointPullResponse>(prjNode, mavrosPrefix + "mission/pull", mavros_msgs.WaypointPull._TYPE));
-		services.put("mission/push", new MavrosService<mavros_msgs.WaypointPushRequest, mavros_msgs.WaypointPushResponse>(prjNode, mavrosPrefix + "mission/push", mavros_msgs.WaypointPush._TYPE));
-		services.put("mission/clear", new MavrosService<mavros_msgs.WaypointClearRequest, mavros_msgs.WaypointClearResponse>(prjNode, mavrosPrefix + "mission/clear", mavros_msgs.WaypointClear._TYPE));
-		services.put("mission/set_current", new MavrosService<mavros_msgs.WaypointSetCurrentRequest, mavros_msgs.WaypointSetCurrentResponse>(prjNode, mavrosPrefix + "mission/set_current", mavros_msgs.WaypointSetCurrent._TYPE));
-
+		
 		/** Wait for all services to be connected **/
 		waitServicesConnection();
 	}
@@ -58,26 +62,11 @@ public class MavrosServicesManager {
 	private void waitServicesConnection() {
 		prjNode.printLog("Wait for all services to be connected..");
 		for (String key : services.keySet()) {
-			boolean firstTimeMsg = true;
-			while ( (!services.get(key).isNotFound()) && (!services.get(key).isConnected()) ) {
-				if (firstTimeMsg) {
-					prjNode.printLog("waiting service" + key);
-					firstTimeMsg = false;
-				}
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					prjNode.printLog("Interruption command received.. wakeup from sleep");
-				}
-			}
-			if (services.get(key).isNotFound()) {
-				prjNode.printLog("Service '" + key + "' not found");
-			}
-			else {
-				prjNode.printLog("Service '" + key + "' connected");
+			if (!services.get(key).waitServiceConnection()) {
+				throw new RosRuntimeException("Service '" + key + "' NOT found");
 			}
 		}
-		prjNode.printLog("All founded services are connected");
+		prjNode.printLog("All services have been connected");
 	}
 	
 	/**

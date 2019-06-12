@@ -8,11 +8,13 @@
 	          
 	     *** -->
 
-	<arg name="system_id" default="1" />	
+	<arg name="system_id" default="1" />
+	<arg name="vehicle_type" default="copter" />	
 	<arg name="log_output" default="screen" />
 	<arg name="clear_params" default="true" />
 	
 	<node pkg="prj_pkg" type="prj" args="com.github.rosjava.prj_pkg.prj.PrjNode" name="prj_node_$(arg system_id)" output="$(arg log_output)" clear_params="$(arg clear_params)">	
-		<param name="system_id" value="$(arg system_id)" />			
+		<param name="system_id" value="$(arg system_id)" />
+		<param name="vehicle_type" value="$(arg vehicle_type)" />			
 	</node>		
 </launch>

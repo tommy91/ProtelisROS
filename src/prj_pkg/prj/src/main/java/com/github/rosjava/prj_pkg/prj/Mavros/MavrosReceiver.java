@@ -21,6 +21,10 @@ public class MavrosReceiver<T> {
 		return !receivedMessages.isEmpty();
 	}
 	
+	protected T getForcedReceivedMessage() {
+		return receivedMessages.get(0);
+	}
+	
 	public T getReceivedMessage() {
 		if (hasReceivedMessage()) {
 			return receivedMessages.get(0);
@@ -30,6 +34,10 @@ public class MavrosReceiver<T> {
 		}
 	}
 	
+	protected T removeForcedReceivedMessage() {
+		return receivedMessages.remove(0);
+	}
+	
 	public T removeReceivedMessage() {
 		if (hasReceivedMessage()) {
 			return receivedMessages.remove(0);
@@ -37,6 +45,25 @@ public class MavrosReceiver<T> {
 		else {
 			return null;
 		}
+	}
+	
+	public void waitReceivedMessage(int sleepTimeMillis) {
+		while (!hasReceivedMessage()) {
+			try {
+				Thread.sleep(sleepTimeMillis);
+			} catch (InterruptedException e) {
+			}
+		}
+	}
+	
+	public T waitAndGetReceivedMessage(int sleepTimeMillis) {
+		waitReceivedMessage(sleepTimeMillis);
+		return receivedMessages.get(0);
+	}
+	
+	public T waitAndRemoveReceivedMessage(int sleepTimeMillis) {
+		waitReceivedMessage(sleepTimeMillis);
+		return receivedMessages.remove(0);
 	}
 
 }
