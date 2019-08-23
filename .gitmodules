@@ -1,0 +1,3 @@
+[submodule "src/adhoc_communication"]
+	path = src/adhoc_communication
+	url = https://github.com/tommy91/adhoc_communication.git
