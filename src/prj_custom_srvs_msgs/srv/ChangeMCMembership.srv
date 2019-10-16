@@ -1,0 +1,5 @@
+string group_name
+uint8 action
+---
+uint8 status
+

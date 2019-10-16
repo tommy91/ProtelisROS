@@ -1,0 +1,6 @@
+string dst_robot
+string topic
+string data
+---
+uint8 status
+

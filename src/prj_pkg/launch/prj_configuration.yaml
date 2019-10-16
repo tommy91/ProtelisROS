@@ -1,0 +1,55 @@
+
+protelis:
+
+   protelisProgramFilename: 'arducopter'
+   sleepRunCycleMs: 1000
+
+
+
+adhoc_communication:
+
+   adhoc_communication_node_name: 'adhoc_communication'
+   adhoc_communication_mc_prefix: 'mc_'
+   
+   # Use the same topic names as in adhoc_communication
+   topic_new_robot_suffix: 'new_robot'
+   topic_remove_robot_suffix: 'remove_robot'
+   
+   # Topic where adhoc_communication node will publish the state received from the other nodes
+   topic_state_suffix: 'protelis_state'
+   
+   # The protelis state will be shared every 'shareEveryNRounds' rounds of protelis, starting from round 1
+   # meaning that if shareEveryNRounds=5 then the state will be shared at rounds 1,6,11,16,..
+   share_state_every_n_rounds: 1
+   
+   
+   
+mavros:
+
+   interestedTopics: [
+      'state',
+      'global_position/global',
+      'global_position/rel_alt',
+      'local_position/pose',
+      'mission/reached',
+      'mission/waypoints' 
+      ]
+   mavrosNodeName: 'mavros'
+
+
+
+ardupilot:
+   # Mavros publishes with a frequency of 1Hz */
+   sleepTimeMs: 500
+   altitudeSkew: 0.1
+   latitudeSkew: 0.1
+   longitudeSkew: 0.1
+   xSkew: 0.1
+   ySkew: 0.1
+   zSkew: 0.1
+   
+   
+   
+   
+
+
