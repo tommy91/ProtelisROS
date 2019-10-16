@@ -1,4 +1,4 @@
-package com.github.rosjava.prj_pkg.prj.Mavros;
+package com.github.rosjava.prj_pkg.prj.RosCommunicationManagers;
 
 import org.ros.exception.RemoteException;
 import org.ros.exception.RosRuntimeException;
@@ -10,7 +10,7 @@ import org.ros.node.service.ServiceResponseListener;
 
 import com.github.rosjava.prj_pkg.prj.PrjNode;
 
-public class MavrosService<T_Req,T_Res> extends MavrosReceiver<T_Res>{
+public class PrjService<T_Req,T_Res> extends PrjReceiver<T_Res>{
 	
 	private ConnectedNode connectedNode;
 	private ServiceClient<T_Req, T_Res> serviceClient;
@@ -20,7 +20,7 @@ public class MavrosService<T_Req,T_Res> extends MavrosReceiver<T_Res>{
 	private Time lastResponseTime;
 	
 	
-	public MavrosService(final PrjNode prjNode, String completeServiceName, String serviceType) {
+	public PrjService(final PrjNode prjNode, String completeServiceName, String serviceType) {
 		this.completeServiceName = completeServiceName;
 		connectedNode = prjNode.getConnectedNode();
 		try {
@@ -28,7 +28,7 @@ public class MavrosService<T_Req,T_Res> extends MavrosReceiver<T_Res>{
 			serviceResponseListener = new ServiceResponseListener<T_Res>() {
 				@Override
 				public void onFailure(RemoteException e) {
-					prjNode.printLog(e.toString());
+					prjNode.logError(e.toString());
 					throw new RosRuntimeException(e);
 				}
 
@@ -39,7 +39,7 @@ public class MavrosService<T_Req,T_Res> extends MavrosReceiver<T_Res>{
 				}
 			};
 		} catch (ServiceNotFoundException e) {
-			prjNode.printLog("Error on setup service '" + completeServiceName + "': service not found exception");
+			prjNode.logError("Error on setup service '" + completeServiceName + "': service not found exception");
 			canBeFound = false;
 		}
 	}

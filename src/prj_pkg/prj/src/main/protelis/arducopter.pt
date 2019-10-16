@@ -6,30 +6,30 @@ import java.lang.Math.random
 
 def maxh(field) { maxHood PlusSelf( nbr(field) ) }
 
-let status = self.getArdupilotManager().getVehicleStatus();
-self.announce("Status: " + status);
+let status = self.getVehicleController().getVehicleStatus();
+// self.logInfo("Status: " + status);
 
 if (status == "READY") {
 	let c = (2 + random() * (8 - 2));
-	self.getArdupilotManager().takeoff(c);
+	self.getVehicleController().takeoff(c);
 }
 else { if (status == "INITIALIZING_TAKEOFF") {
 	0
 }
 else { if ( (status == "TAKING_OFF") || (status == "LANDING") ) {
-	let altitude = self.getArdupilotManager().getAltitude();
-	self.announce("My altitude is " + altitude);
-	self.announce("The maximum altitude is " + maxh(altitude));
+	let altitude = self.getVehicleController().getAltitude();
+	self.logInfo("My altitude is " + altitude);
+	self.logInfo("The maximum altitude is " + maxh(altitude));
 }
 else { if (status == "ON_AIR") {
 	if (env.has("mission_completed")) {
 		let mc = env.get("mission_completed");
 		if (mc) {
-			self.announce("mission completed");
-			self.getArdupilotManager().land();
+			self.logInfo("mission completed");
+			self.getVehicleController().land();
 		}
 		else {
-			self.announce("mission NOT completed");
+			self.logInfo("mission NOT completed");
 			0;
 		}
 	}
@@ -39,9 +39,9 @@ else { if (status == "ON_AIR") {
 		//self.getArdupilotManager().waypointPush(c.get(0)+10.0,c.get(1)+10.0,c.get(2));
 		//self.getArdupilotManager().setMode("AUTO");
 		
-		self.getArdupilotManager().moveLocal(10.0,10.0,10.0);
+		self.getVehicleController().moveLocal(10.0,10.0,10.0);
 		
-		self.announce("Moving");
+		self.logInfo("Moving");
 		env.put("mission_completed",true);
 	}
 }
@@ -55,5 +55,5 @@ else { if (status == "MOVING") {
 	0
 }
 else {
-	self.announce("Error: Status '" + status + "' unknown!");
+	self.logInfo("Error: Status '" + status + "' unknown!");
 }}}}}}}

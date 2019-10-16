@@ -1,9 +1,9 @@
-package com.github.rosjava.prj_pkg.prj.Mavros;
+package com.github.rosjava.prj_pkg.prj.RosCommunicationManagers;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MavrosReceiver<T> {
+public class PrjReceiver<T> {
 	
 	private final List<T> receivedMessages = new ArrayList<T>();
 	

@@ -9,11 +9,16 @@
 	     *** -->
 
 	<arg name="system_id" default="1" />
-	<arg name="vehicle_type" default="copter" />	
+	<arg name="vehicle_type" default="copter" />
+	<arg name="namespace" default="prj_device_1" />	
 	<arg name="log_output" default="screen" />
 	<arg name="clear_params" default="true" />
+	<arg name="node_name" default="prj_node" />
 	
-	<node pkg="prj_pkg" type="prj" args="com.github.rosjava.prj_pkg.prj.PrjNode" name="prj_node_$(arg system_id)" output="$(arg log_output)" clear_params="$(arg clear_params)">	
+	<node ns="$(arg namespace)" pkg="prj_pkg" type="prj" args="com.github.rosjava.prj_pkg.prj.PrjNode" name="$(arg node_name)" output="$(arg log_output)" clear_params="$(arg clear_params)">	
+		<rosparam file="prj_configuration.yaml" command="load" />
+		<!-- Leaving the parameter system_id and vehicle_type here, instead of placing them inside the configuration file
+			 because they can be useful if you run a simulation with multiple and maybe different robots -->
 		<param name="system_id" value="$(arg system_id)" />
 		<param name="vehicle_type" value="$(arg vehicle_type)" />			
 	</node>		

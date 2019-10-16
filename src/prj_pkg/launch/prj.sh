@@ -1,40 +1,45 @@
 #!/bin/bash
 
-## Accepted options:
-## -h|--help		to print help and exit
-## -c|--clear		to clear the folder removing NON-default files
-## -i|--id			followed by the system ID of the device (1:255) 
-##					[or system ID of the first device if multiple launch]
-## -d|--devices		followed by the number of devices to launch
-##					[they will have a progressive system ID]
-## -k|--kill		to kill all the backgroud processes 
-##					from the previous execution
-## -v|--vehicle	to specify the vehicle type [default: copter]
-
-
+## For usage see the help option
 ## Note: the upper case variables are the ones you can edit
 
 ## Default variables
 SYSTEM_ID="1"
+NAMESPACE_PREFIX="prj_device_"
 VEHICLE_TYPE="copter"
 HOW_MANY_DEVICES="1"
-ROS_IP=127.0.0.1
+ROS_IP="127.0.0.1"
 MASTER_PORT="11311"
-MAVROS_LAUNCHFILE=mavros.launch
-LOG_DIRECTORY=logs/
-LOG_PREFIX_MAVROS="mavros_"
-LOG_FILENAME_PRJ="prj.log"
-LOG_FILENAME_MASTER="master.log"
-log_file_prj="$LOG_DIRECTORY$LOG_FILENAME_PRJ"	## All the prj nodes log to one single file
-log_file_master="$LOG_DIRECTORY$LOG_FILENAME_MASTER"
-DUMP_PID_NODES=dump_pid_nodes.pid
-DUMP_PID_MAVROS=dump_pid_mavros.pid
-DUMP_PID_MASTERS=dump_pid_masters.pid
 
+LAUNCHFILE_MAVROS="mavros.launch"
+LAUNCHFILE_PRJ="prj.launch"
+LAUNCHFILE_ADHOC_COMMUNICATION="adhoc_communication.launch"
+
+LOGS_DIRECTORY="logs"
+LOG_MAVROS="mavros.log"
+LOG_PRJ="prj.log"
+LOG_MASTER="master.log"
+LOG_ADHOC_COMMUNICATION="adhoc_communication.log"
+
+PIDS_DIRECTORY="pids"
+
+ROBOT_NAME_PREFIX="robot_"
+INTERFACE="lo"
 
 ## Edit this variables to choose what to remove when using 'clean'
 FILES_TO_REMOVE=()
-DIRECTORIES_TO_REMOVE=("logs")
+DIRECTORIES_TO_REMOVE=($LOGS_DIRECTORY $PIDS_DIRECTORY)
+
+
+getMacFromID() {
+  local curr_id=$1
+  local len_curr_id=$((12-${#curr_id}))
+  for (( i=1; i<=$len_curr_id; i++ )); do
+    curr_id="${curr_id}0"
+  done
+  curr_id=$(echo $curr_id | sed -r 's/.{2}/&:/g; s/.$//')
+  echo "$curr_id"
+}
 
 
 ## Parsing the options
@@ -97,21 +102,16 @@ do
     ;;
     -k|--kill)
     echo "Killing Nodes:"
-    while read LINE; do
-      echo -n "Killing PID $LINE.. "
-      kill $LINE
-      if [ "$?" -eq "0" ] ; then
-        echo "ok"
-      fi
-    done < $DUMP_PID_NODES
-    echo "Killing Mavros:"
-    while read LINE; do
-      echo -n "Killing PID $LINE.. "
-      kill $LINE
-      if [ "$?" -eq "0" ] ; then
-        echo "ok"
-      fi
-    done < $DUMP_PID_MAVROS
+    for f in $PIDS_DIRECTORY/*.pid; do
+      echo "Killing nodes for $f:"
+      while read LINE; do
+        echo -n "  Killing PID $LINE.. "
+        kill $LINE
+        if [ "$?" -eq "0" ] ; then
+          echo "ok"
+        fi
+      done < $f
+    done
     ##echo "Killing Masters:"
     ##while read LINE; do
     ##  echo -n "Killing PID $LINE.. "
@@ -134,21 +134,18 @@ do
 done
 
 
-## Checking the log directory
-if [ ! -d $LOG_DIRECTORY ]; then
-  echo -n "Creating log directory '$LOG_DIRECTORY'.. "
-  mkdir -p $LOG_DIRECTORY
+## Checking the logs directory
+if [ ! -d $LOGS_DIRECTORY ]; then
+  echo -n "Creating logs directory '$LOGS_DIRECTORY'.. "
+  mkdir -p $LOGS_DIRECTORY
   echo -e "ok\n"
 fi
-
-
-## Clear the pid dump files
-##:> $DUMP_PID_MASTER
-##echo "Master PID dump in $DUMP_PID_MASTER"
-:> $DUMP_PID_MAVROS
-echo "Mavros PID dump in $DUMP_PID_MAVROS"
-:> $DUMP_PID_NODES
-echo -e "Nodes PID dump in $DUMP_PID_NODES\n"
+## Checking the pids directory
+if [ ! -d $PIDS_DIRECTORY ]; then
+  echo -n "Creating pids directory '$PIDS_DIRECTORY'.. "
+  mkdir -p $PIDS_DIRECTORY
+  echo -e "ok\n"
+fi
 
 
 ## Exporting the ROS_IP
@@ -165,34 +162,75 @@ echo -e "Nodes PID dump in $DUMP_PID_NODES\n"
 ##echo -e "Appending log to: $log_file_master\n"
 
 
-## Running the needed devices
 last_device_num=$(($SYSTEM_ID + $HOW_MANY_DEVICES - 1))
+
+
+## If multiple launch setup simulated macs
+sim_macs=""
+if [ "$HOW_MANY_DEVICES" -gt "1" ]; then
+  sim_macs="sim_robot_macs:="
+  first_time=true
+  for i in $(seq $SYSTEM_ID $last_device_num) 
+  do
+    curr_mac=$( getMacFromID $i )
+  	if [ "$first_time" = true ]; then
+  	  first_time=false
+  	  sim_macs="$sim_macs$ROBOT_NAME_PREFIX$i,$curr_mac"
+  	else
+  	  sim_macs="$sim_macs!$ROBOT_NAME_PREFIX$i,$curr_mac"
+  	fi
+  done
+fi  
+
+
 if [ "$HOW_MANY_DEVICES" -eq "1" ] ; then
   echo -e "Launching 1 $VEHICLE_TYPE device with system ID $SYSTEM_ID\n"
 else
   echo -e "Launching $HOW_MANY_DEVICES $VEHICLE_TYPE devices with system IDs $SYSTEM_ID..$last_device_num\n"
 fi
 
+## Running the needed devices
 for current_device_num in $(seq $SYSTEM_ID $last_device_num) 
 do
-  echo -e "Launching the prj node: (device ID $current_device_num)\n"
+  echo -e "Launching the nodes for device ID $current_device_num\n"
+  namespace="$NAMESPACE_PREFIX$current_device_num"
+  current_log_directory="$LOGS_DIRECTORY/$namespace"
+  pids_filename="$PIDS_DIRECTORY/$namespace.pid"
+  
+  ## Checking the log directory for this namespace
+  if [ ! -d $current_log_directory ]; then
+    echo -n "Creating log directory '$current_log_directory' for '$namespace'.. "
+    mkdir -p $current_log_directory
+    echo -e "ok\n"
+  fi
   
   ## NOTE: for roslaunch
   ## use --wait to delay the launch until a roscore is detected
   ## use -p if you launched roscore on a different port using the -p option
   
-  mavros_log_file=$LOG_DIRECTORY$LOG_PREFIX_MAVROS$current_device_num.log
-  mavros_cmd="roslaunch --wait prj_pkg mavros.launch system_id:=$current_device_num"
+  mavros_log_file="$current_log_directory/$LOG_MAVROS"
+  mavros_cmd="roslaunch --wait prj_pkg mavros.launch system_id:=$current_device_num namespace:=$namespace"
   echo -e "Running mavros: $mavros_cmd"
   $mavros_cmd &>> $mavros_log_file 2>&1 &
-  echo $! >> $DUMP_PID_MAVROS
+  echo $! >> $pids_filename
   echo "PID: $!"
   echo -e "Log mavros to: $mavros_log_file\n"
-
-  prj_cmd="roslaunch --wait prj_pkg prj.launch system_id:=$current_device_num vehicle_type:=$VEHICLE_TYPE"
+  
+  prj_log_file="$current_log_directory/$LOG_PRJ"
+  prj_cmd="roslaunch --wait prj_pkg prj.launch system_id:=$current_device_num vehicle_type:=$VEHICLE_TYPE namespace:=$namespace"
   echo -e "Running prj node: $prj_cmd"
-  $prj_cmd &>> $log_file_prj 2>&1 &
-  echo $! >> $DUMP_PID_NODES
+  $prj_cmd &>> $prj_log_file 2>&1 &
+  echo $! >> $pids_filename
   echo -e "PID: $!"
-  echo -e "Appending log to: $log_file_prj\n"
+  echo -e "Appending log to: $prj_log_file\n"
+  
+  robot_name="$ROBOT_NAME_PREFIX$current_device_num"
+  mac=$( getMacFromID $current_device_num )
+  adhoc_communication_log_file="$current_log_directory/$LOG_ADHOC_COMMUNICATION"
+  adhoc_communication_cmd="roslaunch --wait prj_pkg adhoc_communication.launch interface:=$INTERFACE namespace:=$namespace robot_name:=$robot_name mac:=$mac robots_in_simulation:=$HOW_MANY_DEVICES $sim_macs"
+  echo -e "Running adhoc_communication node: $adhoc_communication_cmd"
+  $adhoc_communication_cmd &>> $adhoc_communication_log_file 2>&1 &
+  echo $! >> $pids_filename
+  echo -e "PID: $!"
+  echo -e "Appending log to: $adhoc_communication_log_file\n"
 done

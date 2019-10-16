@@ -1,13 +1,13 @@
-package com.github.rosjava.prj_pkg.prj.Mavros;
+package com.github.rosjava.prj_pkg.prj.RosCommunicationManagers;
 
 import org.ros.internal.node.topic.SubscriberIdentifier;
 import org.ros.node.ConnectedNode;
 import org.ros.node.topic.Publisher;
 import org.ros.node.topic.PublisherListener;
 
-public class MavrosPublisher<T> {
+public class PrjPublisher<T> {
 	
-	private class MavrosPublisherListener<T2> implements PublisherListener<T2> {
+	private class PrjPublisherListener<T2> implements PublisherListener<T2> {
 
 		@Override
 		public void onMasterRegistrationFailure(Publisher<T2> publisher) {
@@ -42,9 +42,9 @@ public class MavrosPublisher<T> {
 	private boolean isRegistered = false;
 	private boolean hasFailedRegistration = false;
 
-	public MavrosPublisher(final ConnectedNode connectedNode, String topicCompleteName, String topicType) {
+	public PrjPublisher(final ConnectedNode connectedNode, String topicCompleteName, String topicType) {
 		publisher = connectedNode.newPublisher(topicCompleteName, topicType);
-		publisher.addListener(new MavrosPublisherListener<T>());
+		publisher.addListener(new PrjPublisherListener<T>());
 	}
 	
 	private void setMasterRegistration(boolean success) {

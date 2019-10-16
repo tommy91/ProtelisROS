@@ -1,10 +1,10 @@
-package com.github.rosjava.prj_pkg.prj.Ardupilot;
+package com.github.rosjava.prj_pkg.prj.Controllers;
 
 import java.util.List;
 
-public interface ArdupilotInterface {
+public interface VehicleInterface {
 	
-	public void waitArdupilotReady();
+	public void waitVehicleReady();
 	
 	public String getVehicleStatus();
 	

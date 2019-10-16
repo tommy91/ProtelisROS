@@ -1,9 +1,9 @@
-package com.github.rosjava.prj_pkg.prj.Mavros;
+package com.github.rosjava.prj_pkg.prj.RosCommunicationManagers;
 
 import java.util.Collections;
 import java.util.List;
 
-import com.github.rosjava.prj_pkg.prj.ParametersManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.ParametersManager;
 import com.github.rosjava.prj_pkg.prj.PrjNode;
 
 public class MavrosParametersManager extends ParametersManager {

@@ -1,4 +1,4 @@
-package com.github.rosjava.prj_pkg.prj.Mavros;
+package com.github.rosjava.prj_pkg.prj.RosCommunicationManagers;
 
 import org.ros.internal.node.topic.PublisherIdentifier;
 import org.ros.message.MessageListener;
@@ -6,7 +6,7 @@ import org.ros.node.ConnectedNode;
 import org.ros.node.topic.Subscriber;
 import org.ros.node.topic.SubscriberListener;
 
-public class MavrosSubscriber<T> extends MavrosReceiver<T>{
+public class PrjSubscriber<T> extends PrjReceiver<T>{
 	
 	private class MavrosSubscriberListener<T2> implements SubscriberListener<T2> {
 
@@ -44,7 +44,7 @@ public class MavrosSubscriber<T> extends MavrosReceiver<T>{
 	private boolean isRegistered = false;
 	private boolean hasFailedRegistration = false;
 	
-	public MavrosSubscriber(ConnectedNode connectedNode, String topicCompleteName, String topicType) {
+	public PrjSubscriber(ConnectedNode connectedNode, String topicCompleteName, String topicType) {
 		subscriber = connectedNode.newSubscriber(topicCompleteName, topicType);
 		subscriber.addSubscriberListener(new MavrosSubscriberListener<T>());
 		messageListener = new MessageListener<T>() {
@@ -53,7 +53,8 @@ public class MavrosSubscriber<T> extends MavrosReceiver<T>{
 				addReceivedMessage(message);
 			}
 		};
-		subscribe();
+		/* Uncomment this line if not using subscribeInterestedTopics() */
+		// subscribe();	
 	}
 	
 	private void setMasterRegistration(boolean success) {

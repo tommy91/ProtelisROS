@@ -1,33 +1,13 @@
-/*
- * Copyright (C) 2014 %(author)s.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-
 package com.github.rosjava.prj_pkg.prj;
 
 import java.util.List;
 import java.util.Objects;
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
 
 import java8.util.function.Function;
 
 import org.apache.commons.logging.Log;
 
 import org.protelis.lang.ProtelisLoader;
-import org.protelis.lang.datatype.DeviceUID;
 import org.protelis.lang.datatype.Field;
 import org.protelis.lang.datatype.Tuple;
 import org.protelis.lang.datatype.impl.ArrayTupleImpl;
@@ -42,12 +22,13 @@ import org.ros.node.Node;
 import org.ros.node.ConnectedNode;
 import org.ros.node.NodeMain;
 
-import com.github.rosjava.prj_pkg.prj.Ardupilot.ArducopterManager;
-import com.github.rosjava.prj_pkg.prj.Ardupilot.ArdupilotManager;
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosParametersManager;
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosPublishersManager;
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosServicesManager;
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosSubscribersManager;
+import com.github.rosjava.prj_pkg.prj.Controllers.CopterController;
+import com.github.rosjava.prj_pkg.prj.Controllers.VehicleController;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.MavrosParametersManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.ParametersManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.PublishersManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.ServicesManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.SubscribersManager;
 
 import org.ros.concurrent.CancellableLoop;
 
@@ -56,16 +37,13 @@ import org.ros.concurrent.CancellableLoop;
  */
 public class PrjNode extends AbstractExecutionContext implements NodeMain, SpatiallyEmbeddedDevice, LocalizedDevice {
 	
-	/** Edit this variables **/
+	/** Variables assigned in the configuration file **/
+	private String protelisProgramFilename;
+	private Integer sleepRunCycleMs;	// Milliseconds to sleep between two protelis run cycles
 	
-	private final String protelisProgramFilename = "arducopter";
-	
-	private final String baseLogDirectory = "/home/tommy/prj_ws/src/prj_pkg/launch/logs/";
-	private final String baseNamespace = "dev";
-
-	private final int sleepTime = 1000;
-	
-	/** ------------------- **/
+	/* Default variables */
+	private final int default_system_id = 1;
+	private final int default_sleepRunCycleMs = 1000;
 	
 	private ConnectedNode connectedNode;
 	private Integer system_id;
@@ -76,23 +54,14 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	
 	// My Protelis device variables
 	private ProtelisVM vm;
-	private DeviceUID deviceUID;
-	private int deviceIntID;
-	private String deviceStringID;
-	
-	// Mavros variables
-	private Process mavrosProcess;
-	private File mavrosLogFile;
+	private PrjUID deviceUID;
 	
 	private MavrosParametersManager mavrosParametersManager;
-	private NeighborManager neighborManager;
-	private MavrosSubscribersManager mavrosSubscribersManager;
-	private MavrosPublishersManager mavrosPublishersManager;
-	private MavrosServicesManager mavrosServicesManager;
-	private ArdupilotManager ardupilotManager;
-	
-	// SITL variables
-	private Process sitlProcess;
+	private ParametersManager parametersManager;
+	private SubscribersManager subscribersManager;
+	private PublishersManager publishersManager;
+	private ServicesManager servicesManager;
+	private VehicleController vehicleController;
 
 	
 	public PrjNode() {
@@ -105,18 +74,11 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		ProtelisProgram program = ProtelisLoader.parse(protelisProgramFilename);
 		vm = new ProtelisVM(program, this);
 	}
-	
-	private void setupUIDs() {
-		deviceUID = new IntegerUID(system_id);
-		IntegerUID integerUID = (IntegerUID) deviceUID;
-		deviceIntID = integerUID.getUID();
-		deviceStringID = integerUID.toString();
-	}
 	 
 	/** 
 	 * Needed by Protelis AbstractExecutionContext: Internal-only lightweight constructor to support "instance" 
 	 */
-	private PrjNode(DeviceUID deviceUID) {
+	private PrjNode(PrjUID deviceUID) {
 		super(new SimpleExecutionEnvironment(), new PrjNetworkManager());
 		this.deviceUID = deviceUID;
 		vm = null;
@@ -134,12 +96,8 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	 * Requested by Protelis AbstractExecutionContext
 	 */
 	@Override
-	public DeviceUID getDeviceUID() {
+	public PrjUID getDeviceUID() {
 		return deviceUID;
-	}
-	
-	public String getDeviceStringID() {
-		return deviceStringID;
 	}
 	
 	/** 
@@ -213,7 +171,7 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	 */
 	@Override
 	public Tuple getCoordinates() {
-		final List<Double> cd = ardupilotManager.getCoordinates();
+		final List<Double> cd = vehicleController.getCoordinates();
 		Tuple c = new ArrayTupleImpl(0, cd.size());
 		for (int i = 0; i < cd.size(); i++) {
 			c = c.set(i, cd.get(i));
@@ -226,13 +184,6 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	 */
 	public ProtelisVM getVM() {
 		return vm;
-	}
-	
-	/** 
-	 * Called by Protelis to dump a string message to the output
-	 */
-	public void announce(String message) {
-		printLog(message);
 	}
 
 	/** 
@@ -262,34 +213,39 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		// Get ROS default logger
 		log = connectedNode.getLog();
 		
+		logInfo("Node name: " + getNodeName().toString());
+		logInfo("Namespace: " + getNamespace().toString());
+		
 		mavrosParametersManager = new MavrosParametersManager(this);
+		parametersManager = new ParametersManager(this);
 		
-		// Get the system id from parameters
-		getSystemID();
+		// Read the input parameters from the Parameter Server
+		readInputParameters();
 		
-		setupProtelis();
-		setupUIDs();
+		subscribersManager = new SubscribersManager(this);
+		publishersManager = new PublishersManager(this);
+		servicesManager = new ServicesManager(this);
 		
-//		launchMavrosNode();
 		
-		neighborManager = new NeighborManager(this);
-		
-		mavrosSubscribersManager = new MavrosSubscribersManager(this);
-		mavrosPublishersManager = new MavrosPublishersManager(this);
-		mavrosServicesManager = new MavrosServicesManager(this);
-		// Setup the ardupilot manager corresponding to the current vehicle type
-		setupArdupilot();
+		// Setup the controller corresponding to the current vehicle type
+		setupVehicle();
 		
 		// Blocking here until the ardupilot device state is connected
 		// ardupilotManager.waitArdupilotSystemsOnline();
 				
 		// Setup mavros listeners and service callers
 //		mavrosSubscribersManager.subscribeInterestedTopics();
-		ardupilotManager.waitArdupilotReady();
-		mavrosServicesManager.setupServices();
-		mavrosPublishersManager.setupPublishers();
+		vehicleController.waitVehicleReady();
+		servicesManager.setupPrjServices();
+		publishersManager.setupPrjPublishers();
+
 		
+		deviceUID = accessNetworkManager().setup(this);
+		
+		setupProtelis();
+
 		// Execute in loop the protelis program
+		logInfo("run synchronizer");
 		runSynchronizer();
 	}
 	
@@ -298,17 +254,6 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	 */
 	@Override
 	public void onShutdown(Node node) {
-		if (mavrosProcess != null) {
-			printLog("Killing mavros node..");
-			mavrosProcess.destroy();
-			printLog("Killed mavros");
-		}
-		
-		if (sitlProcess != null) {
-			printLog("Killing SITL..");
-			sitlProcess.destroy();
-			printLog("Killed SITL");
-		}
 	}
 	
 	/** 
@@ -325,60 +270,54 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 	public void onError(Node node, Throwable throwable) {
 	}
 	
-	private void getSystemID() {
-		system_id = mavrosParametersManager.getIntegerParam("~system_id");
+	private void readInputParameters() {
+		logInfo("Reading the parameters:");
+		system_id = parametersManager.getIntegerParam("~system_id");
 		if (system_id != null) {
-			printLog("System ID: " + Integer.toString(system_id));
+			logInfo("System ID: " + Integer.toString(system_id));
 		}
 		else {
-			system_id = 1;
-			printLog("Default System ID: " + Integer.toString(system_id));
+			system_id = default_system_id;
+			logError("Default System ID: " + Integer.toString(system_id));
+		}
+		protelisProgramFilename = parametersManager.getStringParam("~protelis/protelisProgramFilename");
+		if (protelisProgramFilename == null) {
+			exitWithError("Cannot run without a protelisProgramFilename.. review the prj_configuration file.");
+		}
+		logInfo("Protelis program filename: " + protelisProgramFilename);
+		sleepRunCycleMs = parametersManager.getIntegerParam("~protelis/sleepRunCycleMs");
+		if (sleepRunCycleMs != null) {
+			logInfo("Protelis sleep run cycle: " + Integer.toString(sleepRunCycleMs));
+		}
+		else {
+			sleepRunCycleMs = default_sleepRunCycleMs;
+			logError("Default protelis sleep run cycle: " + Integer.toString(sleepRunCycleMs));
 		}
 	}
 	
-	private void setupArdupilot() {
-		vehicleType = mavrosParametersManager.getStringParam("~vehicle_type");
+	/**
+	 * Here you need to create the appropriate ArdupilotManager instance of your vehicle
+	 * based on the vehicle_type in the parameters
+	 */
+	private void setupVehicle() {
+		vehicleType = parametersManager.getStringParam("~vehicle_type");
 		if (vehicleType == null) {
-			printLog("The vehicle type is not present in the parameters.. cannot execute without it. Abort and exit.");
-			// TODO exit here with error
+			exitWithError("The vehicle type is not present in the parameters.. cannot execute without it. Abort and exit.");
 		}
 		else if (Objects.equals(vehicleType, "copter")) {
-			printLog("Correctly setup vehicle type to '" + vehicleType + "'");
-			ardupilotManager = new ArducopterManager(this);
+			logInfo("Correctly setup vehicle type to '" + vehicleType + "'");
+			vehicleController = new CopterController(this);
 		}
+		// TODO add other vehicles
 		else {
-			printLog("The vehicle type '" + vehicleType + "' is unknown. Abort and exit.");
-			// TODO exit here with error
+			exitWithError("The vehicle type '" + vehicleType + "' is unknown. Abort and exit.");
 		}
 	}
 	
-	private void launchMavrosNode() {
-		// Setup log file:
-		mavrosLogFile = new File(baseLogDirectory + getMavrosNamespace() + "_mavros.log");
-		try {
-			mavrosLogFile.createNewFile();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		String launchfilePath = "/home/tommy/prj_ws/src/prj_pkg/launch/mavros.launch";
-		
-//		List<String> bashCmd = Arrays.asList("bash", "-c", mavrosBashFile + " " + deviceStringID);
-		List<String> bashCmd = Arrays.asList("roslaunch", launchfilePath, "system_id:=" + deviceStringID);
-		
-//		ProcessBuilder mavrosBuilder = new ProcessBuilder().command(bashCmd).inheritIO();
-		ProcessBuilder mavrosBuilder = new ProcessBuilder().command(bashCmd);
-//		mavrosBuilder.redirectError(mavrosLogFile);
-		mavrosBuilder.redirectOutput(mavrosLogFile);
-		
-		printLog("Launching mavros.. ");
-		
-		try {
-			mavrosProcess = mavrosBuilder.start();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
+	public void exitWithError(String message) {
+		logError(message);
+		connectedNode.shutdown();
+		System.exit(1);
 	}
 	
 	/**
@@ -389,33 +328,44 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 		return mavrosParametersManager;
 	}
 	
-	public MavrosServicesManager getMavrosServicesManager() {
-		return mavrosServicesManager;
+	public ParametersManager getParametersManager() {
+		return parametersManager;
 	}
 	
-	public MavrosSubscribersManager getMavrosSubscribersManager() {
-		return mavrosSubscribersManager;
+	public ServicesManager getServicesManager() {
+		return servicesManager;
 	}
 	
-	public MavrosPublishersManager getMavrosPublishersManager() {
-		return mavrosPublishersManager;
+	public SubscribersManager getSubscribersManager() {
+		return subscribersManager;
+	}
+	
+	public PublishersManager getPublishersManager() {
+		return publishersManager;
 	}
 	
 	public ConnectedNode getConnectedNode() {
 		return connectedNode;
 	}
 	
-	public ArdupilotManager getArdupilotManager() {
-		return ardupilotManager;
+	public GraphName getNodeName() {
+		return connectedNode.getName();
 	}
 	
-	public String getMavrosNamespace() {
-		// Namespace like 'dev0', 'dev1', ... 
-		return baseNamespace + deviceStringID;
+	public GraphName getNamespace() {
+		return connectedNode.getResolver().getNamespace();
+	}
+	
+	public VehicleController getVehicleController() {
+		return vehicleController;
 	}
 
-	public void printLog(String message) {
+	public void logInfo(String message) {
 		log.info(message);
+	}
+	
+	public void logError(String message) {
+		log.error(message);
 	}
 	
 	private void runSynchronizer() {
@@ -423,9 +373,7 @@ public class PrjNode extends AbstractExecutionContext implements NodeMain, Spati
 			@Override
 			protected void loop() throws InterruptedException {
 				getVM().runCycle();
-				String state = accessNetworkManager().getSendCache();
-				neighborManager.sendToNeighbors(state);
-				Thread.sleep(sleepTime);
+				Thread.sleep(sleepRunCycleMs);
 			}
 		};
 		connectedNode.executeCancellableLoop(synchronizer);

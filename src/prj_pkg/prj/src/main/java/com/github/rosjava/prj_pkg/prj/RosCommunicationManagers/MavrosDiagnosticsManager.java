@@ -1,4 +1,4 @@
-package com.github.rosjava.prj_pkg.prj.Mavros;
+package com.github.rosjava.prj_pkg.prj.RosCommunicationManagers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +8,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class MavrosDiagnosticsManager {
 	
-	private MavrosSubscribersManager mavrosSubscribersManager;
+	private SubscribersManager subscribersManager;
 	private String namespace;
 	
 	private String GCS_BRIDGE_OK_STATUS = "connected";
@@ -26,17 +26,17 @@ public class MavrosDiagnosticsManager {
 	private diagnostic_msgs.DiagnosticStatus GPS_Status;
 	private diagnostic_msgs.DiagnosticStatus FCU_connection_Status;
 	
-	public MavrosDiagnosticsManager(MavrosSubscribersManager mavrosSubscribersManager, String namespace) {
-		this.mavrosSubscribersManager = mavrosSubscribersManager;
+	public MavrosDiagnosticsManager(SubscribersManager subscribersManager, String namespace) {
+		this.subscribersManager = subscribersManager;
 		this.namespace = namespace;
 	}
 	
 	public boolean hasDiagnosticStatusMessage() {
-		return mavrosSubscribersManager.get_Diagnostics().hasReceivedMessage();
+		return subscribersManager.get_Diagnostics().hasReceivedMessage();
 	}
 	
 	public diagnostic_msgs.DiagnosticStatus getDiagnosticStatusMessage() {
-		return mavrosSubscribersManager.get_Diagnostics().getReceivedMessage();
+		return subscribersManager.get_Diagnostics().getReceivedMessage();
 	}
 	
 	public void updateStatus() {

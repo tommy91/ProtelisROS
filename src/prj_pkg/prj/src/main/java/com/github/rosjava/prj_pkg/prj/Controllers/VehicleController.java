@@ -1,4 +1,4 @@
-package com.github.rosjava.prj_pkg.prj.Ardupilot;
+package com.github.rosjava.prj_pkg.prj.Controllers;
 
 import java.lang.Byte;
 import java.util.Arrays;
@@ -11,12 +11,13 @@ import org.ros.message.MessageFactory;
 import org.ros.message.Time;
 
 import com.github.rosjava.prj_pkg.prj.PrjNode;
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosDiagnosticsManager;
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosPublishersManager;
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosServicesManager;
-import com.github.rosjava.prj_pkg.prj.Mavros.MavrosSubscribersManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.MavrosDiagnosticsManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.ParametersManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.PublishersManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.ServicesManager;
+import com.github.rosjava.prj_pkg.prj.RosCommunicationManagers.SubscribersManager;
 
-public class ArdupilotManager implements ArdupilotInterface {
+public class VehicleController implements VehicleInterface {
 	
 	protected class Waiter {
 		
@@ -32,16 +33,16 @@ public class ArdupilotManager implements ArdupilotInterface {
 		}
 		
 		public boolean waitCondition(String message) {
-			prjNode.printLog(message);
+			prjNode.logInfo(message);
 			int num_errors = 0;
 			while (!checkCondition()) {
 				if ( check_num_errors && (num_errors++ > max_num_errors) ) {
 					return false;
 				}
 				try {
-					Thread.sleep(3000);
+					Thread.sleep(sleepTimeMs);
 				} catch (InterruptedException e) {
-					printLog("Interruption command received.. wakeup from sleep");
+					logError("Interruption command received.. wakeup from sleep");
 				}
 			}
 			return true;
@@ -60,45 +61,96 @@ public class ArdupilotManager implements ArdupilotInterface {
 	protected final PrjNode prjNode;
 	protected MessageFactory messageFactory;
 	protected ExecutionEnvironment executionEnvironment;
-	protected MavrosServicesManager mavrosServicesManager;
-	protected MavrosSubscribersManager mavrosSubscribersManager;
-	protected MavrosPublishersManager mavrosPublishersManager;
+	protected ServicesManager servicesManager;
+	protected SubscribersManager subscribersManager;
+	protected PublishersManager publishersManager;
 	protected MavrosDiagnosticsManager mavrosDiagnosticsManager;
 	
 	protected List<Double> homePosition;
 	
-	protected String vehicleStatus = "BOOTING_UP";
-	protected double altitudeSkew = 0.1;
-	protected double latitudeSkew = 0.1;
-	protected double longitudeSkew = 0.1;
-	protected double xSkew = 0.1;
-	protected double ySkew = 0.1;
-	protected double zSkew = 0.1;
+	/* Mavros publishes with a frequency of 1Hz */
+	protected Integer sleepTimeMs;
 	
+	protected String vehicleStatus = "BOOTING_UP";
+	protected Double altitudeSkew;
+	protected Double latitudeSkew;
+	protected Double longitudeSkew;
+	protected Double xSkew;
+	protected Double ySkew;
+	protected Double zSkew;
+	
+	/**
+	 * The following thread will be used to check if the target position is reached 
+	 * so the program won't be stucked waiting for the target position to be reached
+	 */
 	protected CancellableLoop checkerTargetReached;
 	
-	public ArdupilotManager(PrjNode prjNode) {
+	public VehicleController(PrjNode prjNode) {
 		this.prjNode = prjNode;
+		
+		/* Read the input parameters from the Parameter Server */
+		readInputParameters();
+		
 		executionEnvironment = prjNode.getExecutionEnvironment();
-		mavrosServicesManager = prjNode.getMavrosServicesManager();
-		mavrosSubscribersManager = prjNode.getMavrosSubscribersManager();
-		mavrosPublishersManager = prjNode.getMavrosPublishersManager();
-		mavrosDiagnosticsManager = new MavrosDiagnosticsManager(mavrosSubscribersManager, prjNode.getMavrosNamespace());
+		servicesManager = prjNode.getServicesManager();
+		subscribersManager = prjNode.getSubscribersManager();
+		publishersManager = prjNode.getPublishersManager();
+		mavrosDiagnosticsManager = new MavrosDiagnosticsManager(subscribersManager, prjNode.getNamespace().toString());
 		messageFactory = prjNode.getConnectedNode().getTopicMessageFactory();
 	}
 	
-	public void waitArdupilotReady() {
+	private void readInputParameters() {
+		logInfo("Reading the parameters:");
+		ParametersManager mpm = prjNode.getParametersManager();
+		sleepTimeMs = mpm.getIntegerParam("~ardupilot/sleepTimeMs");
+		if (sleepTimeMs == null) {
+			prjNode.exitWithError("Parameter sleepTimeMs is null.. review the prj_configuration file.");
+		}
+		logInfo("sleepTimeMs: " + sleepTimeMs.toString());
+		altitudeSkew = mpm.getDoubleParam("~ardupilot/altitudeSkew");
+		if (altitudeSkew == null) {
+			prjNode.exitWithError("Parameter altitudeSkew is null.. review the prj_configuration file.");
+		}
+		logInfo("altitudeSkew: " + altitudeSkew.toString());
+		latitudeSkew = mpm.getDoubleParam("~ardupilot/latitudeSkew");
+		if (latitudeSkew == null) {
+			prjNode.exitWithError("Parameter latitudeSkew is null.. review the prj_configuration file.");
+		}
+		logInfo("latitudeSkew: " + latitudeSkew.toString());
+		longitudeSkew = mpm.getDoubleParam("~ardupilot/longitudeSkew");
+		if (longitudeSkew == null) {
+			prjNode.exitWithError("Parameter longitudeSkew is null.. review the prj_configuration file.");
+		}
+		logInfo("longitudeSkew: " + longitudeSkew.toString());
+		xSkew = mpm.getDoubleParam("~ardupilot/xSkew");
+		if (xSkew == null) {
+			prjNode.exitWithError("Parameter xSkew is null.. review the prj_configuration file.");
+		}
+		logInfo("xSkew: " + xSkew.toString());
+		ySkew = mpm.getDoubleParam("~ardupilot/ySkew");
+		if (ySkew == null) {
+			prjNode.exitWithError("Parameter ySkew is null.. review the prj_configuration file.");
+		}
+		logInfo("ySkew: " + ySkew.toString());
+		zSkew = mpm.getDoubleParam("~ardupilot/zSkew");
+		if (zSkew == null) {
+			prjNode.exitWithError("Parameter zSkew is null.. review the prj_configuration file.");
+		}
+		logInfo("zSkew: " + zSkew.toString());
+	}
+	
+	public void waitVehicleReady() {
 		new Waiter() {
 			@Override
 			protected boolean checkCondition() {
-				if (!mavrosSubscribersManager.get_State().hasReceivedMessage()) {
+				if (!subscribersManager.get_State().hasReceivedMessage()) {
 					return false;
 				}
 				mavros_msgs.State current_state = getState();
 				return (current_state.getConnected() && (byte2int(current_state.getSystemStatus()) == 3));
 			}
 		}.waitCondition("Waiting for the ardupilot device to be connected..");
-		printLog("Ardupilot device connected");
+		logInfo("Ardupilot device connected");
 		setVehicleStatus("READY");
 	}
 	
@@ -110,18 +162,17 @@ public class ArdupilotManager implements ArdupilotInterface {
 	 *    with the receiving time of the response
 	 */
 	protected boolean checkMessagesTimes(Time lowerTime, Time greaterTime, int sleetTimeMillis) {
-		printLog("Comparing " + lowerTime.toString() + " with " + greaterTime.toString());
+		logInfo("Comparing " + lowerTime.toString() + " with " + greaterTime.toString());
 		if (greaterTime.compareTo(lowerTime) == 1) {
-			printLog("True");
+			logInfo("True");
 			return true;
 		}
 		try {
-			printLog("Sleep 1000");
-			Thread.sleep(1000);
+			Thread.sleep(sleepTimeMs);
 		} catch (InterruptedException e) {
-			printLog("Interruption command received.. wakeup from sleep");
+			logError("Interruption command received.. wakeup from sleep");
 		}
-		printLog("False");
+		logInfo("False");
 		return false;
 	}
 	
@@ -136,6 +187,7 @@ public class ArdupilotManager implements ArdupilotInterface {
 //			checkerTargetReached.cancel();
 //		}
 		vehicleStatus = status;
+		logInfo("New status: " + vehicleStatus);
 	}
 	
 	private void checkNeedToUpdateStatus() {
@@ -145,17 +197,17 @@ public class ArdupilotManager implements ArdupilotInterface {
 	}
 	
 	public void disablePreArmChecks() {
-		printLog("Disabling pre-arm checks.. ");
-		mavros_msgs.ParamSetRequest request = mavrosServicesManager.get_ParamSet().newRequest();
+		logInfo("Disabling pre-arm checks.. ");
+		mavros_msgs.ParamSetRequest request = servicesManager.get_ParamSet().newRequest();
 		mavros_msgs.ParamValue pv = messageFactory.newFromType(mavros_msgs.ParamValue._TYPE);
 		pv.setInteger(0);
 		request.setParamId("ARMING_CHECK");
 		request.setValue(pv);
-		if (mavrosServicesManager.get_ParamSet().callSynch(request, 1000).getSuccess()) {
-			printLog("Pre-arm checks disabled");
+		if (servicesManager.get_ParamSet().callSynch(request, sleepTimeMs).getSuccess()) {
+			logInfo("Pre-arm checks disabled");
 		}
 		else {
-			printLog("Error on disabling pre-arm checks");
+			logError("Error on disabling pre-arm checks");
 		}
 	}
 	
@@ -163,8 +215,8 @@ public class ArdupilotManager implements ArdupilotInterface {
 		Double latitude = null;
 		Double longitude = null;
 		Double relAltitude = null;
-		if (mavrosSubscribersManager.get_GlobalPositionGlobal().hasReceivedMessage()) {
-			sensor_msgs.NavSatFix gpg = mavrosSubscribersManager.get_GlobalPositionGlobal().getReceivedMessage();
+		if (subscribersManager.get_GlobalPositionGlobal().hasReceivedMessage()) {
+			sensor_msgs.NavSatFix gpg = subscribersManager.get_GlobalPositionGlobal().getReceivedMessage();
 			latitude = gpg.getLatitude();
 			longitude = gpg.getLongitude();
 			relAltitude = getRelAltitude();
@@ -186,8 +238,8 @@ public class ArdupilotManager implements ArdupilotInterface {
 	}
 	
 	public Double getRelAltitude() {
-		if (mavrosSubscribersManager.get_GlobalPositionRelAlt().hasReceivedMessage()) {
-			return mavrosSubscribersManager.get_GlobalPositionRelAlt().getReceivedMessage().getData();
+		if (subscribersManager.get_GlobalPositionRelAlt().hasReceivedMessage()) {
+			return subscribersManager.get_GlobalPositionRelAlt().getReceivedMessage().getData();
 		}
 		else {
 			return null;
@@ -195,15 +247,15 @@ public class ArdupilotManager implements ArdupilotInterface {
 	}
 	
 	public geometry_msgs.PoseStamped getLocalPosition() {
-		return mavrosSubscribersManager.get_LocalPositionPose().getReceivedMessage();
+		return subscribersManager.get_LocalPositionPose().getReceivedMessage();
 	}
 	
 	public sensor_msgs.NavSatFix getGlobalPosition() {
-		return mavrosSubscribersManager.get_GlobalPositionGlobal().getReceivedMessage();
+		return subscribersManager.get_GlobalPositionGlobal().getReceivedMessage();
 	}
 	
 	public mavros_msgs.State getState() {
-		return mavrosSubscribersManager.get_State().getReceivedMessage();
+		return subscribersManager.get_State().getReceivedMessage();
 	}
 	
 	protected mavros_msgs.State getStateAfterTime(Time afterTime, int sleetTimeMillis) {
@@ -215,25 +267,25 @@ public class ArdupilotManager implements ArdupilotInterface {
 	}
 	
 	public void setMode(String mode) {
-		printLog("Setting mode to '" + mode + "'.. ");
+		logInfo("Setting mode to '" + mode + "'.. ");
 		if (checkMode(mode)) {
-			printLog("The vehicle mode is already set to '" + mode + "'");
+			logInfo("The vehicle mode is already set to '" + mode + "'");
 		}
 		else {
-			mavros_msgs.SetModeRequest request = mavrosServicesManager.get_SetMode().newRequest();
+			mavros_msgs.SetModeRequest request = servicesManager.get_SetMode().newRequest();
 			request.setCustomMode(mode);
 			request.setBaseMode((byte)0);	// Set base mode to 0 because using only custom mode
-			if (mavrosServicesManager.get_SetMode().callSynch(request, 1000).getModeSent()) {
+			if (servicesManager.get_SetMode().callSynch(request, sleepTimeMs).getModeSent()) {
 				if (waitMode(mode)) {
-					printLog("Mode set to '" + mode + "'");
+					logInfo("Mode set to '" + mode + "'");
 				}
 				else {
-					printLog("Set mode failed (not set after successful call).. retry setting mode to '" + mode + "'");
+					logError("Set mode failed (not set after successful call).. retry setting mode to '" + mode + "'");
 					setMode(mode);
 				}
 			}
 			else {
-				printLog("Set mode failed (unsuccessful call).. retry setting mode to '" + mode + "'");
+				logError("Set mode failed (unsuccessful call).. retry setting mode to '" + mode + "'");
 				setMode(mode);
 			}
 		}
@@ -263,27 +315,27 @@ public class ArdupilotManager implements ArdupilotInterface {
 	}
 	
 	public void arming(boolean arm) {
-		printLog(arm ? "Arming.. " : "Disarming.. ");
+		logInfo(arm ? "Arming.. " : "Disarming.. ");
 		if (checkArmed(arm)) {
-			printLog("The vehicle is already " + (arm ? "armed" : "disarmed"));
+			logInfo("The vehicle is already " + (arm ? "armed" : "disarmed"));
 		}
 		else {
-			mavros_msgs.CommandBoolRequest request = mavrosServicesManager.get_CmdArming().newRequest();
+			mavros_msgs.CommandBoolRequest request = servicesManager.get_CmdArming().newRequest();
 			request.setValue(arm);
-			if (mavrosServicesManager.get_CmdArming().callSynch(request, 1000).getSuccess()) {
+			if (servicesManager.get_CmdArming().callSynch(request, sleepTimeMs).getSuccess()) {
 				if (waitArmed(arm)) {
-					printLog("The vehicle is now " + (arm ? "armed" : "disarmed"));
+					logInfo("The vehicle is now " + (arm ? "armed" : "disarmed"));
 					if (arm) {
 						homePosition = getCoordinates();
 					}
 				}
 				else {
-					printLog((arm ? "Arming " : "Disarming ") + "failed (not set after successful call).. retry " + (arm ? "arming " : "disarming "));
+					logError((arm ? "Arming " : "Disarming ") + "failed (not set after successful call).. retry " + (arm ? "arming " : "disarming "));
 					arming(arm);
 				}
 			}
 			else {
-				printLog((arm ? "Arming " : "Disarming ") + "failed (unsuccessful call).. retry " + (arm ? "arming " : "disarming "));
+				logError((arm ? "Arming " : "Disarming ") + "failed (unsuccessful call).. retry " + (arm ? "arming " : "disarming "));
 				arming(arm);
 			}
 		}
@@ -313,7 +365,7 @@ public class ArdupilotManager implements ArdupilotInterface {
 	}
 	
 	public void returnToLaunch() {
-		printLog("Return to launch position..");
+		logInfo("Return to launch position..");
 		setMode("RTL");
 		setVehicleStatus("RTL");
 		checkRTLCompleted();
@@ -326,7 +378,7 @@ public class ArdupilotManager implements ArdupilotInterface {
 	private void checkRTLCompleted() {
 		CancellableLoop synchronizer = new CancellableLoop() {
 			
-			int sleepTimeMillis = 100;
+			int sleepTimeMillis = sleepTimeMs;
 			
 			@Override
 			protected void loop() throws InterruptedException {
@@ -350,12 +402,12 @@ public class ArdupilotManager implements ArdupilotInterface {
 	
 	public void moveLocal(Double forward, Double right, Double down) {
 		if (!canMove()) {
-			printLog("Move error: the vehicle cannot be moved (status: " + getVehicleStatus() + ")");
+			logError("Move error: the vehicle cannot be moved (status: " + getVehicleStatus() + ")");
 		}
 		else {
 			// Set the target position updating the current position with the non null target values
 			geometry_msgs.PoseStamped currentLocalPosition = getLocalPosition();
-			printLog("Current position (x,y,z): " + localPositionToString(currentLocalPosition));
+			logInfo("Current position (x,y,z): " + localPositionToString(currentLocalPosition));
 			if (forward != null) {
 				currentLocalPosition.getPose().getPosition().setY(forward);
 			}
@@ -365,11 +417,11 @@ public class ArdupilotManager implements ArdupilotInterface {
 			if (down != null) {
 				currentLocalPosition.getPose().getPosition().setZ(down);
 			}
-			printLog("Moving to (x,y,z): " + localPositionToString(currentLocalPosition));
+			logInfo("Moving to (x,y,z): " + localPositionToString(currentLocalPosition));
 			
 			// Publish the command and run the target reached checker
 			setVehicleStatus("MOVING");
-			mavrosPublishersManager.getPublisher_SetpointPositionLocal().publish(currentLocalPosition);
+			publishersManager.getPublisher_SetpointPositionLocal().publish(currentLocalPosition);
 			checkLocalTargetReached(currentLocalPosition);
 		}
 	}
@@ -380,7 +432,7 @@ public class ArdupilotManager implements ArdupilotInterface {
 		}
 		checkerTargetReached = new CancellableLoop() {
 			
-			int sleepTimeMillis = 100;
+			int sleepTimeMillis = sleepTimeMs;
 			
 			@Override
 			protected void loop() throws InterruptedException {
@@ -400,7 +452,7 @@ public class ArdupilotManager implements ArdupilotInterface {
 	
 	private boolean isOnLocalTarget(geometry_msgs.PoseStamped target) {
 		geometry_msgs.PoseStamped current = getLocalPosition();
-		printLog("Current position (x,y,z): " + localPositionToString(current));
+		logInfo("Current position (x,y,z): " + localPositionToString(current));
 		return (Math.abs(current.getPose().getPosition().getX() - target.getPose().getPosition().getX()) <= xSkew) &&
 				(Math.abs(current.getPose().getPosition().getY() - target.getPose().getPosition().getY()) <= ySkew) &&
 				(Math.abs(current.getPose().getPosition().getZ() - target.getPose().getPosition().getZ()) <= zSkew);
@@ -413,19 +465,19 @@ public class ArdupilotManager implements ArdupilotInterface {
 		return "(" + x.toString() + "," + y.toString() + "," + z.toString() + ")";
 	}
 	
-	private void checkTargetReached(final double latitude, final double longitude, final double relAltitude) {
+	protected void checkTargetReached(final Double latitude, final Double longitude, final Double relAltitude, final String toStatus) {
 		if (checkerTargetReached != null) {
 			checkerTargetReached.cancel();
 		}
 		checkerTargetReached = new CancellableLoop() {
 			
-			int sleepTimeMillis = 100;
+			int sleepTimeMillis = sleepTimeMs;
 			
 			@Override
 			protected void loop() throws InterruptedException {
 				
 				if (isOnTarget(latitude, longitude, relAltitude)) {
-					setVehicleStatus("ON_AIR");
+					setVehicleStatus(toStatus);
 					cancel();
 				}
 				else {
@@ -437,57 +489,58 @@ public class ArdupilotManager implements ArdupilotInterface {
 		prjNode.getConnectedNode().executeCancellableLoop(checkerTargetReached);
 	}
 	
-	private boolean isOnTarget(double latitude, double longitude, double relAltitude) {
+	private boolean isOnTarget(Double latitude, Double longitude, Double relAltitude) {
 		List<Double> currentPos = getCoordinates();
-		return (Math.abs(currentPos.get(0) - latitude) <= latitudeSkew) &&
-				(Math.abs(currentPos.get(1) - longitude) <= longitudeSkew) &&
-				(Math.abs(currentPos.get(2) - relAltitude) <= altitudeSkew);
+		boolean checkLatitude = (latitude == null) || (Math.abs(currentPos.get(0) - latitude) <= latitudeSkew);
+		boolean checkLongitude = (longitude == null) || (Math.abs(currentPos.get(1) - longitude) <= longitudeSkew);
+		boolean checkAltitude = (relAltitude == null) || (Math.abs(currentPos.get(2) - relAltitude) <= altitudeSkew);
+		return  checkLatitude && checkLongitude && checkAltitude;
 	}
 	
 	public void moveGlobal(Double latitude, Double longitude, Double relAltitude) {
 		if (!canMove()) {
-			printLog("Move error: the vehicle cannot be moved (status: " + getVehicleStatus() + ")");
+			logError("Move error: the vehicle cannot be moved (status: " + getVehicleStatus() + ")");
 		}
 		else {
 			// Normalize the target position
 			List<Double> currentPos = getCoordinates();
-			printLog("Current position (Lat,Long,RelAlt): (" + currentPos.get(0).toString() + "," + 
+			logInfo("Current position (Lat,Long,RelAlt): (" + currentPos.get(0).toString() + "," + 
 					currentPos.get(1).toString() + "," + currentPos.get(2).toString() + ")");
 			latitude = (latitude == null) ? currentPos.get(0) : latitude;
 			longitude = (longitude == null) ? currentPos.get(1) : longitude;
 			relAltitude = (relAltitude == null) ? currentPos.get(2) : relAltitude;
-			printLog("Moving to (Lat,Long,RelAlt): (" + latitude.toString() + "," + longitude.toString() + "," + relAltitude.toString() + ")");
+			logInfo("Moving to (Lat,Long,RelAlt): (" + latitude.toString() + "," + longitude.toString() + "," + relAltitude.toString() + ")");
 			// Set the request
-			mavros_msgs.GlobalPositionTarget request = mavrosPublishersManager.getPublisher_SetpointPositionGlobal().newMessage();
+			mavros_msgs.GlobalPositionTarget request = publishersManager.getPublisher_SetpointPositionGlobal().newMessage();
 			request.setLatitude(latitude);
 			request.setLongitude(longitude);
 			request.setAltitude(relAltitude.floatValue());
 			// Run the command and the target reached checker
 			setVehicleStatus("MOVING");
-			mavrosPublishersManager.getPublisher_SetpointPositionGlobal().publish(request);
-			checkTargetReached(latitude, longitude, relAltitude);
+			publishersManager.getPublisher_SetpointPositionGlobal().publish(request);
+			checkTargetReached(latitude, longitude, relAltitude, "ON_AIR");
 		}
 	}
 	
 	public void waypointClear() {
-		printLog("Clear waypoint..");
-		mavros_msgs.WaypointClearRequest request = mavrosServicesManager.get_MissionClear().newRequest();
-		if (mavrosServicesManager.get_MissionClear().callSynch(request, 1000).getSuccess()) {
-			printLog("Clear waypoint completed");
+		logInfo("Clear waypoint..");
+		mavros_msgs.WaypointClearRequest request = servicesManager.get_MissionClear().newRequest();
+		if (servicesManager.get_MissionClear().callSynch(request, sleepTimeMs).getSuccess()) {
+			logInfo("Clear waypoint completed");
 		}
 		else {
-			printLog("Clear waypoint unsuccessful.. retrying");
+			logError("Clear waypoint unsuccessful.. retrying");
 			waypointClear();
 		}
 	}
 	
 	public int waypointPush(Double latitude, Double longitude, Double relAltitude) {
-		printLog("Push waypoint: " +
+		logInfo("Push waypoint: " +
 				(latitude != null ? latitude.toString() + " Lat " : "") +
 				(longitude != null ? longitude.toString() + " Long " : "") +
 				(relAltitude != null ? relAltitude.toString() + " Alt " : "") 
 				);
-		mavros_msgs.WaypointPushRequest request = mavrosServicesManager.get_MissionPush().newRequest();
+		mavros_msgs.WaypointPushRequest request = servicesManager.get_MissionPush().newRequest();
 		mavros_msgs.Waypoint waypoint = messageFactory.newFromType(mavros_msgs.Waypoint._TYPE);
 		if (latitude != null) {
 			waypoint.setXLat(latitude);
@@ -503,37 +556,37 @@ public class ArdupilotManager implements ArdupilotInterface {
 //		printLog("Created waypoint: " + waypoint.toString());
 		request.setStartIndex((short)waypointGetNext());
 		request.setWaypoints(Arrays.asList(waypoint));
-		mavros_msgs.WaypointPushResponse response = mavrosServicesManager.get_MissionPush().callSynch(request, 1000);
+		mavros_msgs.WaypointPushResponse response = servicesManager.get_MissionPush().callSynch(request, sleepTimeMs);
 		if (response.getSuccess()) {
-			printLog("Waypoint correctly pushed");
+			logInfo("Waypoint correctly pushed");
 			return response.getWpTransfered();
 		}
 		else {
-			printLog("Push waypoint unsuccessful (" + Integer.toString(response.getWpTransfered()) + ").. retrying");
+			logError("Push waypoint unsuccessful (" + Integer.toString(response.getWpTransfered()) + ").. retrying");
 			return waypointPush(latitude, longitude, relAltitude);
 		}
 	}
 	
 	public void waypointSetCurrent(int current) {
-		printLog("Set current waypoint to " + Integer.toString(current) + "..");
-		mavros_msgs.WaypointSetCurrentRequest request = mavrosServicesManager.get_MissionSetCurrent().newRequest();
+		logInfo("Set current waypoint to " + Integer.toString(current) + "..");
+		mavros_msgs.WaypointSetCurrentRequest request = servicesManager.get_MissionSetCurrent().newRequest();
 		request.setWpSeq((short) current);
-		if (mavrosServicesManager.get_MissionSetCurrent().callSynch(request, 1000).getSuccess()) {
-			printLog("Set current waypoint completed");
+		if (servicesManager.get_MissionSetCurrent().callSynch(request, sleepTimeMs).getSuccess()) {
+			logInfo("Set current waypoint completed");
 		}
 		else {
-			printLog("Set current waypoint unsuccessful.. retrying");
+			logError("Set current waypoint unsuccessful.. retrying");
 			waypointSetCurrent(current);
 		}
 	}
 	
 	public boolean waypointHasReached() {
-		return mavrosSubscribersManager.get_MissionReached().hasReceivedMessage();
+		return subscribersManager.get_MissionReached().hasReceivedMessage();
 	}
 	
 	public Integer waypointGetLastReached() {
 		if (waypointHasReached()) {
-			return (int) mavrosSubscribersManager.get_MissionReached().getReceivedMessage().getWpSeq();
+			return (int) subscribersManager.get_MissionReached().getReceivedMessage().getWpSeq();
 		}
 		else {
 			return null;
@@ -541,19 +594,19 @@ public class ArdupilotManager implements ArdupilotInterface {
 	}
 	
 	public boolean waypointHasCurrent() {
-		return mavrosSubscribersManager.get_MissionWaypoints().hasReceivedMessage();
+		return subscribersManager.get_MissionWaypoints().hasReceivedMessage();
 	}
 	
 	public Integer waypointGetCurrent() {
 		if (waypointHasCurrent()) {
-			return (int) mavrosSubscribersManager.get_MissionWaypoints().getReceivedMessage().getCurrentSeq();
+			return (int) subscribersManager.get_MissionWaypoints().getReceivedMessage().getCurrentSeq();
 		}
 		return null;
 	}
 	
 	public Integer waypointGetLast() {
 		if (waypointHasCurrent()) {
-			return (int) mavrosSubscribersManager.get_MissionWaypoints().getReceivedMessage().getWaypoints().size() - 1;
+			return (int) subscribersManager.get_MissionWaypoints().getReceivedMessage().getWaypoints().size() - 1;
 		}
 		return null;
 	}
@@ -571,8 +624,12 @@ public class ArdupilotManager implements ArdupilotInterface {
 		return b.intValue();
 	}
 	
-	protected void printLog(String message) {
-		prjNode.printLog(message);
+	protected void logInfo(String message) {
+		prjNode.logInfo(message);
+	}
+	
+	protected void logError(String message) {
+		prjNode.logError(message);
 	}
 
 }

@@ -1,4 +1,4 @@
-package com.github.rosjava.prj_pkg.prj;
+package com.github.rosjava.prj_pkg.prj.RosCommunicationManagers;
 
 import java.util.List;
 
@@ -6,6 +6,8 @@ import org.ros.exception.ParameterNotFoundException;
 import org.ros.internal.node.parameter.DefaultParameterTree;
 import org.ros.namespace.GraphName;
 import org.ros.node.ConnectedNode;
+
+import com.github.rosjava.prj_pkg.prj.PrjNode;
 
 public class ParametersManager {
 	
@@ -22,7 +24,7 @@ public class ParametersManager {
 	public void printAllParameters() {
 		List<GraphName> paramsNames = params.getNames();
 		for (int i = 0; i < paramsNames.size(); i++) {
-			prjNode.printLog("parametro " + Integer.toString(i) + ": " + paramsNames.get(i));
+			prjNode.logInfo("parametro " + Integer.toString(i) + ": " + paramsNames.get(i));
 		}
 	}
 	
@@ -30,7 +32,7 @@ public class ParametersManager {
 		try {
 			return params.getInteger(connectedNode.resolveName(parameterName).toString());
 		} catch (ParameterNotFoundException e) {
-			prjNode.printLog("ParameterNotFoundException: " + e);
+			prjNode.logError("ParameterNotFoundException: " + e);
 			printAllParameters();
 			return null;
 		}
@@ -40,7 +42,7 @@ public class ParametersManager {
 		try {
 			return params.getBoolean(connectedNode.resolveName(parameterName).toString());
 		} catch (ParameterNotFoundException e) {
-			prjNode.printLog("ParameterNotFoundException: " + e);
+			prjNode.logError("ParameterNotFoundException: " + e);
 			printAllParameters();
 			return null;
 		}
@@ -50,7 +52,7 @@ public class ParametersManager {
 		try {
 			return params.getString(connectedNode.resolveName(parameterName).toString());
 		} catch (ParameterNotFoundException e) {
-			prjNode.printLog("ParameterNotFoundException: " + e);
+			prjNode.logError("ParameterNotFoundException: " + e);
 			printAllParameters();
 			return null;
 		}
@@ -61,7 +63,7 @@ public class ParametersManager {
 		try {
 			return (List<String>) params.getList(connectedNode.resolveName(parameterName).toString());
 		} catch (ParameterNotFoundException e) {
-			prjNode.printLog("ParameterNotFoundException: " + e);
+			prjNode.logError("ParameterNotFoundException: " + e);
 			printAllParameters();
 			return null;
 		}
@@ -71,7 +73,7 @@ public class ParametersManager {
 		try {
 			return params.getDouble(connectedNode.resolveName(parameterName).toString());
 		} catch (ParameterNotFoundException e) {
-			prjNode.printLog("ParameterNotFoundException: " + e);
+			prjNode.logError("ParameterNotFoundException: " + e);
 			printAllParameters();
 			return null;
 		}
